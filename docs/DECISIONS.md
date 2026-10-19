@@ -125,4 +125,24 @@ Bu doküman, Personal Workspace geliştirme sürecinde alınan kritik mimari, te
 - **Alternatifler:**
   - *Draft.js / Quill:* Eski API modelleri, React 18 ile hydration ve tip uyumsuzlukları nedeniyle elendi.
 
+---
+
+## ADR-008: Bağımsız Çizimler (Excalidraw), Sahne Sürümleme ve Boyut Sınırı
+
+- **Tarih:** 2026-10-19
+- **Durum:** Kabul Edildi
+- **Karar:**
+  - Bağımsız çizim ve teknik mimari diyagramları için `@excalidraw/excalidraw` (0.18.x) React 18 ile entegre edildi.
+  - Excalidraw'ın sık tetiklenen `onChange` çağrıları, `getSceneVersion(elements)` hash kontrolü ile filtrelendi; yalnızca sahne elemanları gerçekten değiştiğinde `useAutosave` tetiklenir.
+  - Çizimler arasında geçiş yapıldığında sahne kirlenmesini önlemek amacıyla `Excalidraw` bileşeni `key={drawing.id}` ile yeniden monte edilir.
+  - Liste endpoint'i (`GET /api/workspaces/{workspaceId}/drawings`) büyük `document_data` JSONB verisini çekmez; `DrawingSummaryDto` projeksiyonu ile hafif meta veriler döner.
+  - Backend tarafında çizim belgesi boyutu 10MB sınırı ile doğrulanır.
+  - İstemci tarafında PNG, SVG vektör ve `.excalidraw` JSON formatlarında dışa aktarma (export) desteklendi.
+- **Gerekçe:**
+  - JSONB sütununda tam Excalidraw şemasının saklanması, çizimin kayıpsız ve yeniden düzenlenebilir kalmasını sağlar.
+  - Hafif özet listesi sayesinde liste sayfalarında ağ ve bellek darboğazı yaşanmaz.
+- **Alternatifler:**
+  - *Canvas'ı saf PNG/JPEG olarak saklamak:* Düzenleme kabiliyetini yok eder, kesinlikle reddedildi.
+
+
 

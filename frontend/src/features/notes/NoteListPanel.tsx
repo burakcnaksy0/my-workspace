@@ -33,7 +33,7 @@ export const NoteListPanel: React.FC = () => {
   const fetchTags = useCallback(async () => {
     if (!workspaceId) return;
     try {
-      const data = await apiRequest<TagItem[]>(`/workspaces/${workspaceId}/tags`);
+      const data = await apiRequest<TagItem[]>(`/api/workspaces/${workspaceId}/tags`);
       setTags(data);
     } catch (err) {
       console.error('Etiketler yüklenemedi:', err);
@@ -52,7 +52,7 @@ export const NoteListPanel: React.FC = () => {
       params.append('size', '50');
 
       const data = await apiRequest<PagedResponse<NoteSummary>>(
-        `/workspaces/${workspaceId}/notes?${params.toString()}`
+        `/api/workspaces/${workspaceId}/notes?${params.toString()}`
       );
       setNotes(data.content);
 
@@ -81,7 +81,7 @@ export const NoteListPanel: React.FC = () => {
     if (!workspaceId) return;
     setIsEditorLoading(true);
     try {
-      const noteData = await apiRequest<Note>(`/workspaces/${workspaceId}/notes/${noteId}`);
+      const noteData = await apiRequest<Note>(`/api/workspaces/${workspaceId}/notes/${noteId}`);
       setActiveNote(noteData);
     } catch (err) {
       console.error('Not detayları yüklenemedi:', err);
@@ -105,7 +105,7 @@ export const NoteListPanel: React.FC = () => {
         tags: selectedTag ? [selectedTag] : [],
       };
 
-      const created = await apiRequest<Note>(`/workspaces/${workspaceId}/notes`, {
+      const created = await apiRequest<Note>(`/api/workspaces/${workspaceId}/notes`, {
         method: 'POST',
         body: JSON.stringify(req),
       });
@@ -126,7 +126,7 @@ export const NoteListPanel: React.FC = () => {
     if (!workspaceId || !activeNote) throw new Error('Geçersiz istek');
 
     const updated = await apiRequest<Note>(
-      `/workspaces/${workspaceId}/notes/${activeNote.id}`,
+      `/api/workspaces/${workspaceId}/notes/${activeNote.id}`,
       {
         method: 'PUT',
         body: JSON.stringify(req),
@@ -160,7 +160,7 @@ export const NoteListPanel: React.FC = () => {
   const handleDeleteNote = async (noteId: string) => {
     if (!workspaceId) return;
     try {
-      await apiRequest(`/workspaces/${workspaceId}/notes/${noteId}`, {
+      await apiRequest(`/api/workspaces/${workspaceId}/notes/${noteId}`, {
         method: 'DELETE',
       });
       setActiveNote(null);

@@ -19,7 +19,12 @@ import { LoginForm } from './features/auth/LoginForm';
 import { AreaManagementModal } from './features/workspace/AreaManagementModal';
 import { TaskListPanel } from './features/tasks/TaskListPanel';
 import { DashboardPanel } from './features/dashboard/DashboardPanel';
-import { NoteListPanel } from './features/notes/NoteListPanel';
+const NoteListPanel = React.lazy(() =>
+  import('./features/notes/NoteListPanel').then((m) => ({ default: m.NoteListPanel }))
+);
+const DrawingListPanel = React.lazy(() =>
+  import('./features/drawings/DrawingListPanel').then((m) => ({ default: m.DrawingListPanel }))
+);
 
 const ICON_MAP: Record<string, React.ElementType> = {
   briefcase: Briefcase,
@@ -49,8 +54,8 @@ const DashboardContent: React.FC = () => {
     { id: 'overview' as TabId, label: 'Genel Bakış', icon: LayoutDashboard },
     { id: 'tasks' as TabId, label: 'Günlük Plan & Görevler', icon: CalendarCheck },
     { id: 'notes' as TabId, label: 'Notlar (Tiptap)', icon: FileText },
+    { id: 'drawings' as TabId, label: 'Çizimler (Excalidraw)', icon: PenTool },
     { id: 'boards' as TabId, label: 'Çalışma Panoları', icon: Kanban, badge: 'Aşama 6' },
-    { id: 'drawings' as TabId, label: 'Çizimler (Excalidraw)', icon: PenTool, badge: 'Aşama 5' },
     { id: 'areas' as TabId, label: 'Alanlar', icon: Compass, count: areas.length },
   ];
 
@@ -67,6 +72,8 @@ const DashboardContent: React.FC = () => {
         return <TaskListPanel />;
       case 'notes':
         return <NoteListPanel />;
+      case 'drawings':
+        return <DrawingListPanel />;
       case 'areas':
         return (
           <div className="space-y-4">
@@ -250,7 +257,7 @@ const DashboardContent: React.FC = () => {
               </span>
             </h2>
             <p className="text-xs text-slate-400">
-              Aşama 3: Görev Yönetimi & Dashboard — Gerçek Verilerle
+              Personal Workspace — Local-first Kişisel Bilgi ve Çalışma Alanı
             </p>
           </div>
 
@@ -269,7 +276,16 @@ const DashboardContent: React.FC = () => {
 
         {/* Content Body */}
         <div className="p-8 max-w-7xl w-full mx-auto">
-          {renderContent()}
+          <React.Suspense
+            fallback={
+              <div className="flex flex-col items-center justify-center p-16 text-slate-400 text-sm">
+                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
+                <span>Modül yükleniyor...</span>
+              </div>
+            }
+          >
+            {renderContent()}
+          </React.Suspense>
         </div>
       </main>
 

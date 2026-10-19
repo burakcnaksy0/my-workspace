@@ -434,74 +434,75 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             <Link2 className="w-4 h-4" />
           </ToolbarButton>
           <ToolbarButton
-            onClick={() =>
-              editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+            onClick={() => İstek başarısız oldu (405)
+          editor.chain().focus().insertTable({rows: 3, cols: 3, withHeaderRow: true }).run()
             }
-            isActive={editor.isActive('table')}
-            title="Tablo Ekle (3x3)"
+          isActive={editor.isActive('table')}
+          title="Tablo Ekle (3x3)"
           >
-            <Table2 className="w-4 h-4" />
-          </ToolbarButton>
+          <Table2 className="w-4 h-4" />
+        </ToolbarButton>
 
           {editor.isActive('table') && (
-            <div className="flex items-center gap-1 text-[11px] bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700">
-              <button
-                onClick={() => editor.chain().focus().addColumnAfter().run()}
-                className="hover:text-white"
-                title="Sütun Ekle"
-              >
-                +Sütun
-              </button>
-              <button
-                onClick={() => editor.chain().focus().addRowAfter().run()}
-                className="hover:text-white"
-                title="Satır Ekle"
-              >
-                +Satır
-              </button>
-              <button
-                onClick={() => editor.chain().focus().deleteTable().run()}
-                className="hover:text-red-400"
-                title="Tabloyu Sil"
-              >
-                Sil
-              </button>
-            </div>
-          )}
-
-          <ToolbarDivider />
-
-          {/* Undo / Redo */}
-          <ToolbarButton
-            onClick={() => editor.chain().focus().undo().run()}
-            disabled={!editor.can().undo()}
-            title="Geri Al (Ctrl+Z)"
+        <div className="flex items-center gap-1 text-[11px] bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700">
+          <button
+            onClick={() => editor.chain().focus().addColumnAfter().run()}
+            className="hover:text-white"
+            title="Sütun Ekle"
           >
-            <Undo className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().redo().run()}
-            disabled={!editor.can().redo()}
-            title="İleri Al (Ctrl+Y)"
+            +Sütun
+          </button>
+          <button
+            onClick={() => editor.chain().focus().addRowAfter().run()}
+            className="hover:text-white"
+            title="Satır Ekle"
           >
-            <Redo className="w-4 h-4" />
-          </ToolbarButton>
+            +Satır
+          </button>
+          <button
+            onClick={() => editor.chain().focus().deleteTable().run()}
+            className="hover:text-red-400"
+            title="Tabloyu Sil"
+          >
+            Sil
+          </button>
         </div>
       )}
 
-      {/* Editor Content Area */}
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-        <EditorContent editor={editor} />
-      </div>
+      <ToolbarDivider />
 
-      {/* Footer Info */}
-      <div className="px-4 py-2 border-t border-slate-800/60 bg-slate-900/40 text-[11px] text-slate-400 flex items-center justify-between">
-        <span>Sürüm (Version): #{version}</span>
-        {lastSavedAt && (
-          <span>Son Kayıt: {lastSavedAt.toLocaleTimeString('tr-TR')}</span>
-        )}
-      </div>
+      {/* Undo / Redo */}
+      <ToolbarButton
+        onClick={() => editor.chain().focus().undo().run()}
+        disabled={!editor.can().undo()}
+        title="Geri Al (Ctrl+Z)"
+      >
+        <Undo className="w-4 h-4" />
+      </ToolbarButton>
+      <ToolbarButton
+        onClick={() => editor.chain().focus().redo().run()}
+        disabled={!editor.can().redo()}
+        title="İleri Al (Ctrl+Y)"
+      >
+        <Redo className="w-4 h-4" />
+      </ToolbarButton>
     </div>
+  )
+}
+
+{/* Editor Content Area */ }
+<div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+  <EditorContent editor={editor} />
+</div>
+
+{/* Footer Info */ }
+<div className="px-4 py-2 border-t border-slate-800/60 bg-slate-900/40 text-[11px] text-slate-400 flex items-center justify-between">
+  <span>Sürüm (Version): #{version}</span>
+  {lastSavedAt && (
+    <span>Son Kayıt: {lastSavedAt.toLocaleTimeString('tr-TR')}</span>
+  )}
+</div>
+    </div >
   );
 };
 
@@ -527,11 +528,10 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
     onClick={onClick}
     disabled={disabled}
     title={title}
-    className={`p-1.5 rounded-lg transition text-xs ${
-      isActive
+    className={`p-1.5 rounded-lg transition text-xs ${isActive
         ? 'bg-blue-600/30 text-blue-300 border border-blue-500/40'
         : 'hover:bg-slate-800 text-slate-400 hover:text-slate-100'
-    } ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}
+      } ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}
   >
     {children}
   </button>

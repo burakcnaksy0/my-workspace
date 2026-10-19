@@ -19,7 +19,11 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   // Enforce same-origin relative URL starting with /api
-  const url = endpoint.startsWith('/') ? endpoint : `/api/${endpoint}`;
+  let path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  if (!path.startsWith('/api/') && path !== '/api') {
+    path = `/api${path}`;
+  }
+  const url = path;
 
   const headers = new Headers(options.headers || {});
   headers.set('Accept', 'application/json');

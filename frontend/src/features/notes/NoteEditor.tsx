@@ -434,11 +434,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             <Link2 className="w-4 h-4" />
           </ToolbarButton>
           <ToolbarButton
-            onClick={() => İstek başarısız oldu (405)
-          editor.chain().focus().insertTable({rows: 3, cols: 3, withHeaderRow: true }).run()
+            onClick={() =>
+              editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
             }
-          isActive={editor.isActive('table')}
-          title="Tablo Ekle (3x3)"
+            isActive={editor.isActive('table')}
+            title="Tablo Ekle (3x3)"
           >
           <Table2 className="w-4 h-4" />
         </ToolbarButton>

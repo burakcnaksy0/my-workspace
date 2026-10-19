@@ -1,0 +1,38 @@
+# Compiled and build directories
+backend/target/
+frontend/dist/
+frontend/node_modules/
+
+# Environment files
+.env
+*.env.local
+
+# IDE and Editor files
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+
+# Logs
+logs/
+*.log
+
+# Backups
+backups/
+*.dump
+*.sha256
+
+# Maven wrapper jar if desired or keep wrapper
+# .mvn/wrapper/maven-wrapper.jar
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Test coverage & reports
+coverage/
+.nyc_output/

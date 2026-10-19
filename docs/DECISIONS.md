@@ -1,0 +1,73 @@
+# Personal Workspace — Mimari Karar Kayıtları (Architecture Decision Records)
+
+Bu doküman, Personal Workspace geliştirme sürecinde alınan kritik mimari, teknik ve altyapı kararlarını, gerekçelerini ve değerlendirilen alternatifleri içerir.
+
+---
+
+## ADR-001: Build Aracı ve Java Sürümü Tercihi
+
+- **Tarih:** 2026-10-19
+- **Durum:** Kabul Edildi
+- **Karar:** 
+  - Backend derleme aracı olarak **Maven** seçildi ve repoya **Maven Wrapper (`mvnw`)** eklendi.
+  - Java sürümü olarak **Java 21 LTS** ve Spring Boot sürümü olarak **Spring Boot 3.4.1** sabitlendi.
+- **Gerekçe:**
+  - Geliştirme ortamında Maven 3.8.7 ve Java 21 / 24 mevcutken Gradle bulunmamaktadır.
+  - Spring Boot 3.4.1, Spring Framework 6.2 ve Spring Security 6.4 ile tam uyumludur, RFC 7807 ProblemDetail, Spring Session JDBC ve Jakarta EE 10 standartlarını eksiksiz destekler.
+  - Maven Wrapper sayesinde harici Maven kurulumu gerekmeden her ortamda (yerel, CI/CD, Docker) deterministik derleme sağlanır.
+- **Alternatifler:**
+  - *Gradle:* Ortamda kurulu değildi, ek kurulum ve wrapper yapılandırması gerektirecekti.
+  - *Spring Boot 3.3.x:* Destekleniyor olsa da 3.4.1 en güncel hata düzeltmelerini ve sanal iş parçacığı (virtual threads) optimizasyonlarını içermektedir.
+
+---
+
+## ADR-002: Frontend Kütüphane Uyumluluğu ve React Sürümü
+
+- **Tarih:** 2026-10-19
+- **Durum:** Kabul Edildi
+- **Karar:**
+  - Frontend için **React 18.3.1**, **TypeScript**, **Vite 6** ve **Tailwind CSS 3.4** tercih edildi.
+  - Editör kütüphaneleri: `@tiptap/react` 2.x, `@excalidraw/excalidraw` 0.18.x, `@xyflow/react` 12.x ve `@dnd-kit/core` 6.x sürümleriyle çalışılacaktır.
+- **Gerekçe:**
+  - `@excalidraw/excalidraw` ve `@dnd-kit` ekosistemleri React 18 ile tam kararlılık ve sıfır tip/render uyuşmazlığı sunmaktadır.
+  - React 19'un yeni derleyici ve ref kuralları bazı üçüncü parti canvas ve drag-drop paketlerinde geçici uyumsuzluklara yol açabilmektedir.
+  - TanStack Query v5, React Router v6, React Hook Form ve Zod bu sürümle kusursuz entegre olur.
+- **Alternatifler:**
+  - *React 19:* İncelendi, bazı canvas kütüphanelerinde peer-dependency uyarıları riski bulunduğu için stabilite önceliklendirilerek React 18.3.1 seçildi.
+
+---
+
+## ADR-003: Same-Origin Kuralı ve Ağ Mimarisi
+
+- **Tarih:** 2026-10-19
+- **Durum:** Kabul Edildi
+- **Karar:**
+  - Tarayıcı yalnızca `http://localhost:3000` (veya `127.0.0.1:3000`) ile konuşacaktır.
+  - Frontend kodu API isteklerini göreli `/api` önekiyle atar.
+  - Nginx (Docker ortamında) `/api/` isteklerini backend servisine (`http://backend:8080`) reverse-proxy eder.
+  - Geliştirme ortamında Vite (`vite.config.ts`) `server.proxy` ile `/api` isteklerini `http://localhost:8080`'e yönlendirir.
+  - Backend portu (8080) host tarafına doğrudan açılmaz (sistemde Jenkins vb. diğer servislerin 8080'i kullanması durumunda çakışma önlenir).
+- **Gerekçe:**
+  - CORS karmaşıklığını ve güvenlik açıklarını tamamen ortadan kaldırır.
+  - HttpOnly ve SameSite cookie tabanlı oturum güvenliğini en üst düzeye çıkarır.
+  - Host port çakışmalarını (ör. hostta 8080 portunu kullanan Jenkins servisi) engeller.
+- **Alternatifler:**
+  - *Backend portunu hosta açıp CORS ile erişmek:* Güvenlik riskleri barındırır, port çakışmasına açıktır ve cookie izolasyonunu zayıflatır.
+
+---
+
+## ADR-004: Veritabanı Migration ve Kalıcılık Politikası
+
+- **Tarih:** 2026-10-19
+- **Durum:** Kabul Edildi
+- **Karar:**
+  - PostgreSQL 16 Alpine kullanılacak.
+  - Veritabanı şema yönetimi **Flyway** ile yapılacaktır (`src/main/resources/db/migration/V*.sql`).
+  - Hibernate `spring.jpa.hibernate.ddl-auto=validate` olarak ayarlanacak; Hibernate'in şema üretmesine veya değiştirmesine izin verilmeyecektir.
+  - Docker'da veriler `postgres_data` named volume üzerinde saklanacaktır.
+  - Docker Compose'da `restart: unless-stopped` politikası uygulanacaktır.
+- **Gerekçe:**
+  - Şema sürümleme ve deterministik veritabanı geçişleri garantilenir.
+  - Container silinip yeniden oluşturulsa dahi verilerin korunması sağlanır.
+- **Alternatifler:**
+  - *ddl-auto=update:* Üretim ve kalıcı ortamlarda veri kaybı ve tutarsızlık riski taşır, kesinlikle reddedildi.

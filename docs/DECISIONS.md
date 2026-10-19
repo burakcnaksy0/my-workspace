@@ -71,3 +71,39 @@ Bu doküman, Personal Workspace geliştirme sürecinde alınan kritik mimari, te
   - Container silinip yeniden oluşturulsa dahi verilerin korunması sağlanır.
 - **Alternatifler:**
   - *ddl-auto=update:* Üretim ve kalıcı ortamlarda veri kaybı ve tutarsızlık riski taşır, kesinlikle reddedildi.
+
+---
+
+## ADR-005: Kimlik Doğrulama, Oturum Yönetimi ve Çoklu Çalışma Alanı İzolasyonu
+
+- **Tarih:** 2026-10-19
+- **Durum:** Kabul Edildi
+- **Karar:**
+  - Kimlik doğrulama için standart Spring Security Session-based auth ve **Spring Session JDBC** kullanıldı. Oturumlar veritabanında saklanır (`SPRING_SESSION`), backend yeniden başlatılsa bile oturumlar kaybolmaz.
+  - Şifreler BCrypt (`BCryptPasswordEncoder`, strength 12) ile hashlenir.
+  - Brute-force saldırılarına karşı IP/kullanıcı bazlı sliding-window kilit mekanizması (`LoginRateLimiter`) uygulandı (5 başarısız denemede 15 dakika kilitleme).
+  - CSRF koruması `CookieCsrfTokenRepository.withHttpOnlyFalse()` ile yapılandırıldı; SameSite=Lax cookie ve XSRF token eşleşmesi zorunlu kılındı.
+  - Çalışma alanı izolasyonu için `WorkspaceAccessService` merkezi servis katmanı yazıldı; her API çağrısında kullanıcının workspace üyeliği ve yetkisi doğrulanır.
+- **Gerekçe:**
+  - Local-first ve tarayıcı güvenliği için HttpOnly cookie + Session kimlik doğrulaması JWT'ye göre daha güvenlidir (token hırsızlığı riski yoktur).
+  - Spring Session JDBC sayesinde container yeniden başlatmalarında kullanıcı oturumu düşmez.
+- **Alternatifler:**
+  - *Stateless JWT:* Localhost ortamında XSS durumunda local storage'dan çalınma riski bulunur ve session iptali (revocation) karmaşıktır.
+
+---
+
+## ADR-006: Görev Yönetimi (Tasks) ve İyimser Kilit (Optimistic Locking)
+
+- **Tarih:** 2026-10-19
+- **Durum:** Kabul Edildi
+- **Karar:**
+  - `tasks` tablosunda ve `Task` JPA entity'sinde JPA `@Version` alanı kullanıldı.
+  - Görev güncellemelerinde istemci `version` numarasını göndermek zorundadır; uyuşmazlık durumunda RFC 7807 standardında `409 Conflict` dönülür.
+  - Görev durumu `DONE` yapıldığında `completed_at` otomatik olarak UTC zaman damgasıyla atanır; durum `TODO` veya `IN_PROGRESS`'e geri çekilirse `completed_at` otomatik olarak `null` yapılır.
+  - Dashboard istatistikleri ve görev listeleri indeksli sorgularla (`idx_tasks_workspace_status`, `idx_tasks_due_date`) optimize edildi.
+- **Gerekçe:**
+  - Sekmeler arası veya eşzamanlı güncellemelerde "son yazan kazanır" (lost update) veri kaybını önler.
+  - Tamamlanma zamanı ve son tarih filtreleri dashboard agregasyonunun hızlı çalışmasını sağlar.
+- **Alternatifler:**
+  - *Pessimistic Locking:* Kullanıcı arayüzünde uzun süreli kilit tutmak performans ve deadlock sorunlarına yol açar.
+

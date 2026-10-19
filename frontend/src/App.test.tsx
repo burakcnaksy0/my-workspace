@@ -1,39 +1,123 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import App from './App';
 
-// Mock fetch
 beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe('App Component', () => {
-  it('renders application title and initial layout', async () => {
-    // Mock healthcheck response
-    global.fetch = vi.fn().mockImplementation(() =>
-      Promise.resolve({
+describe('Phase 2 Auth & App Component', () => {
+  it('renders LoginForm when user is unauthenticated', async () => {
+    // Mock /api/auth/me to return 401
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/api/auth/me')) {
+        return Promise.resolve({
+          ok: false,
+          status: 401,
+          json: () => Promise.resolve({ title: 'Unauthorized', status: 401 }),
+        });
+      }
+      return Promise.resolve({
         ok: true,
         status: 200,
-        json: () =>
-          Promise.resolve({
-            status: 'UP',
-            application: 'Personal Workspace Backend',
-            version: '1.0.0',
-            database: 'CONNECTED',
-            databaseType: 'PostgreSQL 16',
-          }),
-      })
-    ) as unknown as typeof fetch;
+        json: () => Promise.resolve({}),
+      });
+    }) as unknown as typeof fetch;
 
     render(<App />);
 
-    expect(screen.getByText('Personal Workspace')).toBeInTheDocument();
-    expect(screen.getByText('Aşama 1 — Altyapı ve Servis Doğrulama')).toBeInTheDocument();
-    expect(screen.getByText('Frontend UI')).toBeInTheDocument();
-    expect(screen.getByText('Backend API')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Güvenli Oturum Girişi')).toBeInTheDocument();
+      expect(screen.getByText('Personal Workspace')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Giriş Yap/i })).toBeInTheDocument();
+    });
+  });
+
+  it('renders Dashboard when login is successful', async () => {
+    global.fetch = vi.fn().mockImplementation((url: string, options?: RequestInit) => {
+      if (url.includes('/api/auth/me')) {
+        return Promise.resolve({
+          ok: false,
+          status: 401,
+          json: () => Promise.resolve({}),
+        });
+      }
+      if (url.includes('/api/auth/login') && options?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              id: 'user-1',
+              username: 'admin',
+              status: 'ACTIVE',
+              defaultWorkspaceId: 'ws-1',
+              defaultWorkspaceName: 'Kişisel Çalışma Alanım',
+            }),
+        });
+      }
+      if (url.includes('/api/workspaces/ws-1/dashboard')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              totalTasks: 5,
+              todoTasks: 2,
+              inProgressTasks: 1,
+              doneTasks: 2,
+              overdueCount: 0,
+              overdueTasks: [],
+              dueTodayTasks: [],
+              recentlyCompletedTasks: [],
+            }),
+        });
+      }
+      if (url.includes('/api/workspaces/ws-1/areas')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve([
+              { id: 'area-1', name: 'İş ve Kariyer', icon: 'briefcase', color: '#3b82f6', sortOrder: 0 },
+              { id: 'area-2', name: 'Yazılım Öğrenimi', icon: 'code', color: '#8b5cf6', sortOrder: 1 },
+            ]),
+        });
+      }
+      if (url.includes('/api/workspaces')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve([
+              {
+                id: 'ws-1',
+                name: 'Kişisel Çalışma Alanım',
+                ownerId: 'user-1',
+                role: 'OWNER',
+                createdAt: new Date().toISOString(),
+              },
+            ]),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({}),
+      });
+    }) as unknown as typeof fetch;
+
+    render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('Aşama 1 Altyapısı Başarıyla Doğrulandı:')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Giriş Yap/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Giriş Yap/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Genel Bakış').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Kişisel Çalışma Alanım').length).toBeGreaterThan(0);
     });
   });
 });

@@ -30,6 +30,7 @@ class PostgresContainerIntegrationTest {
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
         registry.add("spring.flyway.enabled", () -> "true");
+        registry.add("app.bootstrap.admin-password", () -> "test_secure_bootstrap_password");
     }
 
     @Autowired

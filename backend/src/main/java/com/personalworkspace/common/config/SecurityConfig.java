@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -22,6 +24,11 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
     }
 
     @Bean
@@ -48,6 +55,7 @@ public class SecurityConfig {
             )
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                .sessionFixation(fixation -> fixation.migrateSession())
                 .maximumSessions(5)
             )
             .authorizeHttpRequests(auth -> auth
@@ -62,8 +70,7 @@ public class SecurityConfig {
                     "/swagger-ui/**",
                     "/swagger-ui.html",
                     "/error",
-                    "/api/auth/login",
-                    "/api/auth/me"
+                    "/api/auth/login"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
@@ -71,8 +78,8 @@ public class SecurityConfig {
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    response.setContentType("application/json");
-                    response.getWriter().write("{\"title\":\"Forbidden\",\"status\":403,\"detail\":\"Access Denied\"}");
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"type\":\"https://api.personalworkspace.local/errors/forbidden\",\"title\":\"Forbidden\",\"status\":403,\"detail\":\"Bu işlem için yetkiniz bulunmamaktadır.\"}");
                 })
             )
             .headers(headers -> headers

@@ -107,3 +107,22 @@ Bu doküman, Personal Workspace geliştirme sürecinde alınan kritik mimari, te
 - **Alternatifler:**
   - *Pessimistic Locking:* Kullanıcı arayüzünde uzun süreli kilit tutmak performans ve deadlock sorunlarına yol açar.
 
+---
+
+## ADR-007: Zengin Metin Notlar (Tiptap), Otomatik Kayıt ve Arama İndeksi
+
+- **Tarih:** 2026-10-19
+- **Durum:** Kabul Edildi
+- **Karar:**
+  - Zengin metin editörü olarak React 18 ile tam uyumlu **Tiptap 2.x** (`@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-link`, `@tiptap/extension-table`) seçildi.
+  - İçerik PostgreSQL'de yapılandırılmış JSON (`jsonb`) formatında saklanırken (`content`), arama ve kart özetleri için düz metin (`content_text`) alanı tutuldu.
+  - Arama sorguları hem `title` hem de `content_text` üzerinde büyük/küçük harf duyarsız (`ILIKE`) ve etiket / alan filtreleriyle birlikte çalıştırılır.
+  - İstemci tarafında `useAutosave` hook'u geliştirildi: 2000ms gecikmeli debounced otomatik kayıt, `Ctrl+S` / `Cmd+S` ile manuel kayıt ve anlık durum görselleştirmesi (`Kaydedildi`, `Kaydediliyor...`, `Kaydedilmemiş`, `Kayıt Hatası`) sağlandı.
+  - Görevlerde olduğu gibi notlarda da `@Version` optimistik kilit uygulandı; eşzamanlı düzenleme çatışmaları `409 Conflict` ile yakalanıp kullanıcıya bildirilir.
+- **Gerekçe:**
+  - Tiptap, saf HTML saklama yerine yapılandırılmış JSON ağacı ürettiği için XSS açıklarını önler ve ileride blok/düğüm bazlı dönüşümlere (ör. panolara sürükleme) uygundur.
+  - Düz metin (`content_text`) ayrıştırması JSON içindeki arama yavaşlığını ve format karmaşasını bertaraf eder.
+- **Alternatifler:**
+  - *Draft.js / Quill:* Eski API modelleri, React 18 ile hydration ve tip uyumsuzlukları nedeniyle elendi.
+
+

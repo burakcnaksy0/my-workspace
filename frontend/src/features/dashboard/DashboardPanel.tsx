@@ -4,7 +4,7 @@ import { apiRequest } from '../../lib/api';
 import type { DashboardData, Task } from '../../types/task';
 import {
   LayoutDashboard, CheckCircle2, Clock, AlertTriangle, TrendingUp,
-  ListTodo, Loader2, ArrowRight, Calendar, ChevronUp, Minus, ChevronDown, Tag
+  ListTodo, Loader2, ArrowRight, Calendar, ChevronUp, Minus, ChevronDown, Tag, FileText
 } from 'lucide-react';
 
 const PRIORITY_ICON: Record<string, React.ElementType> = {
@@ -37,9 +37,10 @@ function timeAgo(isoString: string): string {
 
 interface Props {
   onNavigateToTasks?: () => void;
+  onNavigateToNotes?: () => void;
 }
 
-export const DashboardPanel: React.FC<Props> = ({ onNavigateToTasks }) => {
+export const DashboardPanel: React.FC<Props> = ({ onNavigateToTasks, onNavigateToNotes }) => {
   const { activeWorkspace } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -215,6 +216,63 @@ export const DashboardPanel: React.FC<Props> = ({ onNavigateToTasks }) => {
           <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
             {(data.recentlyCompletedTasks || []).map((task) => (
               <TaskMiniCard key={task.id} task={task} variant="completed" />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Recent Notes Section */}
+      <div className="p-5 rounded-xl glass-card border border-slate-800 space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+            <FileText className="w-4 h-4 text-indigo-400" />
+            Son Düzenlenen Notlar
+            {data.totalNotes !== undefined && (
+              <span className="text-[11px] px-2 py-0.5 rounded bg-indigo-900/40 text-indigo-300 border border-indigo-500/30 font-mono">
+                Toplam: {data.totalNotes}
+              </span>
+            )}
+          </h4>
+          {onNavigateToNotes && (
+            <button
+              onClick={onNavigateToNotes}
+              className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition"
+            >
+              Notlara Git <ArrowRight className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+        {(data.recentNotes || []).length === 0 ? (
+          <p className="text-xs text-slate-400 py-4 text-center">
+            Henüz not oluşturulmamış. Hızlıca ilk zengin metin notunuzu ekleyebilirsiniz.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {(data.recentNotes || []).map((note) => (
+              <div
+                key={note.id}
+                onClick={onNavigateToNotes}
+                className="p-3 rounded-lg bg-slate-800/40 hover:bg-slate-800/70 border border-slate-700/60 cursor-pointer transition text-left space-y-1.5"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <h5 className="text-xs font-semibold text-white truncate">{note.title}</h5>
+                  <span className="text-[10px] text-slate-400 shrink-0">
+                    {timeAgo(note.updatedAt)}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 line-clamp-2">
+                  {note.snippet || 'İçerik girilmemiş.'}
+                </p>
+                {note.tags && note.tags.length > 0 && (
+                  <div className="flex gap-1 flex-wrap pt-1">
+                    {note.tags.slice(0, 3).map((t) => (
+                      <span key={t} className="text-[9px] text-indigo-300 bg-indigo-950/60 px-1.5 py-0.2 rounded border border-indigo-800/40">
+                        #{t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}

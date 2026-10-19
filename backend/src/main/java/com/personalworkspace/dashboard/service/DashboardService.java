@@ -1,6 +1,8 @@
 package com.personalworkspace.dashboard.service;
 
 import com.personalworkspace.dashboard.dto.DashboardDto;
+import com.personalworkspace.notes.dto.NoteSummaryDto;
+import com.personalworkspace.notes.repository.NoteRepository;
 import com.personalworkspace.task.dto.TaskDto;
 import com.personalworkspace.task.entity.Task;
 import com.personalworkspace.task.repository.TaskRepository;
@@ -24,14 +26,17 @@ import java.util.stream.Collectors;
 public class DashboardService {
 
     private final TaskRepository taskRepository;
+    private final NoteRepository noteRepository;
     private final AreaRepository areaRepository;
     private final WorkspaceAccessService accessService;
 
     public DashboardService(
             TaskRepository taskRepository,
+            NoteRepository noteRepository,
             AreaRepository areaRepository,
             WorkspaceAccessService accessService) {
         this.taskRepository = taskRepository;
+        this.noteRepository = noteRepository;
         this.areaRepository = areaRepository;
         this.accessService = accessService;
     }
@@ -68,6 +73,13 @@ public class DashboardService {
         Instant sevenDaysAgo = now.minus(7, ChronoUnit.DAYS);
         List<Task> recentlyCompleted = taskRepository.findRecentlyCompleted(workspaceId, sevenDaysAgo);
 
+        // Notes summary
+        long totalNotes = noteRepository.countByWorkspaceId(workspaceId);
+        List<NoteSummaryDto> recentNotes = noteRepository.findTop5ByWorkspaceIdOrderByUpdatedAtDesc(workspaceId)
+                .stream()
+                .map(NoteSummaryDto::fromEntity)
+                .toList();
+
         // Build area name map for efficient lookup
         Map<UUID, String> areaNameMap = areaRepository.findByWorkspaceIdOrderBySortOrderAsc(workspaceId)
                 .stream()
@@ -81,7 +93,9 @@ public class DashboardService {
                 overdueTasks.size(),
                 overdueTasks.stream().map(t -> toDto(t, areaNameMap)).toList(),
                 dueTodayTasks.stream().map(t -> toDto(t, areaNameMap)).toList(),
-                recentlyCompleted.stream().limit(10).map(t -> toDto(t, areaNameMap)).toList()
+                recentlyCompleted.stream().limit(10).map(t -> toDto(t, areaNameMap)).toList(),
+                totalNotes,
+                recentNotes
         );
     }
 

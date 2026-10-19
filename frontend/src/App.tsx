@@ -19,6 +19,7 @@ import { LoginForm } from './features/auth/LoginForm';
 import { AreaManagementModal } from './features/workspace/AreaManagementModal';
 import { TaskListPanel } from './features/tasks/TaskListPanel';
 import { DashboardPanel } from './features/dashboard/DashboardPanel';
+import { NoteListPanel } from './features/notes/NoteListPanel';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   briefcase: Briefcase,
@@ -47,7 +48,7 @@ const DashboardContent: React.FC = () => {
   const navItems = [
     { id: 'overview' as TabId, label: 'Genel Bakış', icon: LayoutDashboard },
     { id: 'tasks' as TabId, label: 'Günlük Plan & Görevler', icon: CalendarCheck },
-    { id: 'notes' as TabId, label: 'Notlar (Tiptap)', icon: FileText, badge: 'Aşama 4' },
+    { id: 'notes' as TabId, label: 'Notlar (Tiptap)', icon: FileText },
     { id: 'boards' as TabId, label: 'Çalışma Panoları', icon: Kanban, badge: 'Aşama 6' },
     { id: 'drawings' as TabId, label: 'Çizimler (Excalidraw)', icon: PenTool, badge: 'Aşama 5' },
     { id: 'areas' as TabId, label: 'Alanlar', icon: Compass, count: areas.length },
@@ -56,9 +57,16 @@ const DashboardContent: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <DashboardPanel onNavigateToTasks={() => setActiveTab('tasks')} />;
+        return (
+          <DashboardPanel
+            onNavigateToTasks={() => setActiveTab('tasks')}
+            onNavigateToNotes={() => setActiveTab('notes')}
+          />
+        );
       case 'tasks':
         return <TaskListPanel />;
+      case 'notes':
+        return <NoteListPanel />;
       case 'areas':
         return (
           <div className="space-y-4">

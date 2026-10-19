@@ -57,4 +57,16 @@ export interface DashboardData {
   overdueTasks: Task[];
   dueTodayTasks: Task[];
   recentlyCompletedTasks: Task[];
+  totalNotes?: number;
+  recentNotes?: Array<{
+    id: string;
+    workspaceId: string;
+    areaId: string | null;
+    title: string;
+    snippet: string;
+    tags: string[];
+    version: number;
+    createdAt: string;
+    updatedAt: string;
+  }>;
 }

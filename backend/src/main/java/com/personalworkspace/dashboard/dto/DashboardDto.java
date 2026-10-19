@@ -1,5 +1,6 @@
 package com.personalworkspace.dashboard.dto;
 
+import com.personalworkspace.notes.dto.NoteSummaryDto;
 import com.personalworkspace.task.dto.TaskDto;
 
 import java.util.List;
@@ -12,5 +13,7 @@ public record DashboardDto(
         long overdueCount,
         List<TaskDto> overdueTasks,
         List<TaskDto> dueTodayTasks,
-        List<TaskDto> recentlyCompletedTasks
+        List<TaskDto> recentlyCompletedTasks,
+        long totalNotes,
+        List<NoteSummaryDto> recentNotes
 ) {}

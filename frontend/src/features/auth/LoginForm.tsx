@@ -110,10 +110,10 @@ export const LoginForm: React.FC = () => {
 
           {/* Seed credentials info badge */}
           <div className="mt-6 pt-4 border-t border-slate-800/80 text-[11px] text-slate-400 bg-slate-900/40 p-3 rounded-lg border border-slate-800">
-            <span className="font-semibold text-slate-300">Varsayılan Bootstrap Kullanıcısı:</span>
+            <span className="font-semibold text-slate-300">Giriş Bilgileri:</span>
             <div className="mt-1 font-mono text-slate-400 space-y-0.5">
-              <div>Kullanıcı Adı: <span className="text-blue-400">admin</span></div>
-              <div>Parola: <span className="text-slate-200">.env dosyasındaki BOOTSTRAP_ADMIN_PASSWORD</span></div>
+              <div>Kullanıcı Adı: <span className="text-blue-400">burak</span></div>
+              <div>Parola: <span className="text-slate-200">burakcan123.</span></div>
             </div>
           </div>
         </div>

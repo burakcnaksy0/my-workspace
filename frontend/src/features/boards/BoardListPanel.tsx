@@ -33,6 +33,8 @@ export const BoardListPanel: React.FC = () => {
   const [newBoardAreaId, setNewBoardAreaId] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
 
+  const [selectedColumnForAdd, setSelectedColumnForAdd] = useState<string | undefined>(undefined);
+
   const workspaceId = activeWorkspace?.id;
 
   const fetchBoards = useCallback(async () => {
@@ -168,13 +170,19 @@ export const BoardListPanel: React.FC = () => {
           <ColumnBoardView
             board={activeBoard}
             onRefresh={() => loadBoardDetails(activeBoard.id)}
-            onOpenAddItemModal={() => setIsAddItemModalOpen(true)}
+            onOpenAddItemModal={(colId?: string) => {
+              setSelectedColumnForAdd(colId);
+              setIsAddItemModalOpen(true);
+            }}
           />
         ) : (
           <FreeformBoardView
             board={activeBoard}
             onRefresh={() => loadBoardDetails(activeBoard.id)}
-            onOpenAddItemModal={() => setIsAddItemModalOpen(true)}
+            onOpenAddItemModal={() => {
+              setSelectedColumnForAdd(undefined);
+              setIsAddItemModalOpen(true);
+            }}
           />
         )}
 
@@ -182,10 +190,16 @@ export const BoardListPanel: React.FC = () => {
         {workspaceId && (
           <AddItemModal
             isOpen={isAddItemModalOpen}
-            onClose={() => setIsAddItemModalOpen(false)}
+            onClose={() => {
+              setIsAddItemModalOpen(false);
+              setSelectedColumnForAdd(undefined);
+            }}
             workspaceId={workspaceId}
+            boardName={activeBoard.name}
             columns={activeBoard.columns}
             existingItems={activeBoard.items}
+            defaultColumnId={selectedColumnForAdd}
+            areaId={activeBoard.areaId}
             onItemAdded={handleItemAdded}
           />
         )}
@@ -195,7 +209,7 @@ export const BoardListPanel: React.FC = () => {
 
   // Pano Listesi Görünümü
   return (
-    <div className="flex-1 overflow-y-auto p-8 space-y-6">
+    <div className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6 w-full max-w-[1700px] mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between pb-6 border-b border-slate-800">
         <div>

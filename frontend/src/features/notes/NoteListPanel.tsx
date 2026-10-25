@@ -171,9 +171,9 @@ export const NoteListPanel: React.FC = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-130px)] gap-4">
+    <div className="flex-1 flex min-h-0 w-full h-full gap-5 p-4 sm:p-6 overflow-hidden bg-transparent">
       {/* Left Sidebar: Note List & Search */}
-      <div className="w-80 flex flex-col shrink-0 bg-slate-900/40 rounded-2xl border border-slate-800 overflow-hidden shadow-xl glass-panel">
+      <div className="w-80 md:w-96 flex flex-col shrink-0 bg-slate-900/80 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl backdrop-blur-md">
         {/* Header & New Note Button */}
         <div className="p-4 border-b border-slate-800/80 space-y-3">
           <div className="flex items-center justify-between">

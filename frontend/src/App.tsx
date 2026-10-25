@@ -163,20 +163,9 @@ const DashboardContent: React.FC = () => {
               <h1 className="font-bold text-base tracking-tight text-white flex items-center gap-1.5">
                 Personal Workspace
               </h1>
-              <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                v1.0.0-phase3
-              </div>
+
             </div>
           </div>
-
-          {/* Active Workspace Pill */}
-          <div className="p-3 mx-3 mt-3 rounded-xl bg-slate-800/50 border border-slate-700/60 text-xs">
-            <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Çalışma Alanı</div>
-            <div className="font-semibold text-white truncate mt-0.5">{activeWorkspace?.name || 'Kişisel Alan'}</div>
-            <div className="text-[10px] text-blue-400 font-mono mt-0.5">Rol: {activeWorkspace?.role || 'OWNER'}</div>
-          </div>
-
           {/* Navigation Links */}
           <nav className="p-3 space-y-1">
             <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
@@ -189,11 +178,10 @@ const DashboardContent: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
-                    isActive
-                      ? 'bg-blue-600/15 text-blue-400 border border-blue-500/30 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                  }`}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${isActive
+                    ? 'bg-blue-600/15 text-blue-400 border border-blue-500/30 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                    }`}
                 >
                   <div className="flex items-center space-x-3">
                     <Icon className={`w-4 h-4 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
@@ -269,9 +257,9 @@ const DashboardContent: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col overflow-y-auto bg-slate-950/35 relative z-10">
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-950/35 relative z-10">
         {/* Top Header */}
-        <header className="h-16 border-b border-slate-800/80 px-8 flex items-center justify-between bg-slate-950/70 backdrop-blur-xl sticky top-0 z-20">
+        <header className="h-16 border-b border-slate-800/80 px-6 lg:px-8 flex items-center justify-between bg-slate-950/70 backdrop-blur-xl shrink-0 z-20">
           <div>
             <h2 className="text-lg font-semibold text-white tracking-tight flex items-center gap-2">
               <span>{activeWorkspace?.name || 'Kişisel Çalışma Alanım'}</span>
@@ -298,18 +286,33 @@ const DashboardContent: React.FC = () => {
         </header>
 
         {/* Content Body */}
-        <div className="p-8 max-w-7xl w-full mx-auto">
-          <React.Suspense
-            fallback={
-              <div className="flex flex-col items-center justify-center p-16 text-slate-400 text-sm">
-                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
-                <span>Modül yükleniyor...</span>
-              </div>
-            }
-          >
-            {renderContent()}
-          </React.Suspense>
-        </div>
+        {['boards', 'notes', 'drawings'].includes(activeTab) ? (
+          <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
+            <React.Suspense
+              fallback={
+                <div className="flex-1 flex flex-col items-center justify-center p-16 text-slate-400 text-sm">
+                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
+                  <span>Modül yükleniyor...</span>
+                </div>
+              }
+            >
+              {renderContent()}
+            </React.Suspense>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto w-full max-w-[1700px] mx-auto p-6 lg:p-8">
+            <React.Suspense
+              fallback={
+                <div className="flex flex-col items-center justify-center p-16 text-slate-400 text-sm">
+                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
+                  <span>Modül yükleniyor...</span>
+                </div>
+              }
+            >
+              {renderContent()}
+            </React.Suspense>
+          </div>
+        )}
       </main>
 
       {/* Area modal */}

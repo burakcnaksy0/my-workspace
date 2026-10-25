@@ -183,7 +183,7 @@ export const DrawingListPanel: React.FC = () => {
 
   // ── NORMAL GÖRÜNÜM ─────────────────────────────────────────────────────────
   return (
-    <div className="flex h-[calc(100vh-130px)] gap-4">
+    <div className="flex-1 flex min-h-0 w-full h-full gap-5 p-4 sm:p-6 overflow-hidden bg-transparent">
 
       {/* Sol Sidebar: Çizim Listesi — daraltılabilir */}
       <div

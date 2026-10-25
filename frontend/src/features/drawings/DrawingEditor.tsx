@@ -22,8 +22,12 @@ import {
   Clock,
   ArrowLeft,
 } from 'lucide-react';
-import { useAutosave } from '../../hooks/useAutosave';
 import type { Drawing, UpdateDrawingRequest } from '../../types/drawing';
+
+// Save status type (local to this component; no useAutosave dependency)
+type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
+
+const AUTOSAVE_DELAY = 1500; // ms debounce after last scene change
 
 interface DrawingEditorProps {
   drawing: Drawing;
@@ -39,15 +43,32 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
   onBackToList,
 }) => {
   const [title, setTitle] = useState(drawing.title);
-  const [version, setVersion] = useState(drawing.version);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
-  // References to keep latest Excalidraw scene data
+  // ── Refs: always hold the latest values, never stale in closures ──────────
   const elementsRef = useRef<readonly ExcalidrawElement[]>([]);
   const appStateRef = useRef<AppState | null>(null);
   const filesRef = useRef<BinaryFiles>({});
   const lastSceneVersionRef = useRef<number>(-1);
+
+  // Version lives in a ref so the save function always reads the latest value
+  // without being recreated (avoids stale-closure 409 conflicts).
+  const versionRef = useRef<number>(drawing.version);
+  const titleRef = useRef<string>(drawing.title);
+
+  // Autosave queue state
+  const isSavingRef = useRef(false);   // true while an HTTP request is in flight
+  const isDirtyRef = useRef(false);    // true if a change arrived while saving
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onUpdateDrawingRef = useRef(onUpdateDrawing);
+  onUpdateDrawingRef.current = onUpdateDrawing;
+
+  // Keep titleRef in sync
+  useEffect(() => { titleRef.current = title; }, [title]);
 
   // Parse initial scene data
   const initialData = useMemo(() => {
@@ -69,22 +90,39 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
     }
     return {
       elements: [],
-      appState: {
-        theme: 'dark',
-        viewBackgroundColor: '#121212',
-      },
+      appState: { theme: 'dark', viewBackgroundColor: '#121212' },
       files: {},
     };
-  }, [drawing.id]);
+  }, [drawing.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Reset all local state when a different drawing is opened
   useEffect(() => {
     setTitle(drawing.title);
-    setVersion(drawing.version);
+    titleRef.current = drawing.title;
+    versionRef.current = drawing.version;
+    setSaveStatus('idle');
+    setErrorMessage(null);
     lastSceneVersionRef.current = getSceneVersion(initialData.elements);
     elementsRef.current = initialData.elements;
-  }, [drawing.id]);
+    isSavingRef.current = false;
+    isDirtyRef.current = false;
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+  }, [drawing.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSave = useCallback(async () => {
+  // ── Core save function ────────────────────────────────────────────────────
+  // Always reads from refs → never has a stale version/title closure.
+  const executeSave = useCallback(async () => {
+    if (isSavingRef.current) {
+      // A request is already in flight; mark dirty so we retry after it lands.
+      isDirtyRef.current = true;
+      return;
+    }
+
+    isSavingRef.current = true;
+    isDirtyRef.current = false;
+    setSaveStatus('saving');
+    setErrorMessage(null);
+
     const serialized = serializeAsJSON(
       elementsRef.current,
       appStateRef.current || ({} as AppState),
@@ -92,24 +130,42 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
       'local'
     );
 
-    const req: UpdateDrawingRequest = {
-      title: title.trim() || 'Başlıksız Çizim',
-      documentData: serialized,
-      version,
-    };
+    try {
+      const updated = await onUpdateDrawingRef.current({
+        title: titleRef.current.trim() || 'Başlıksız Çizim',
+        documentData: serialized,
+        version: versionRef.current,   // always latest
+      });
+      // Update version ref with what the server returned
+      versionRef.current = updated.version;
+      setSaveStatus('saved');
+      setLastSavedAt(new Date());
+    } catch (err: unknown) {
+      setSaveStatus('error');
+      const msg = err instanceof Error ? err.message : 'Kaydetme sırasında bir hata oluştu.';
+      setErrorMessage(msg);
+    } finally {
+      isSavingRef.current = false;
+      // If a change arrived while we were saving, send another request.
+      if (isDirtyRef.current) {
+        isDirtyRef.current = false;
+        // Small delay to avoid tight loops on transient errors
+        debounceTimerRef.current = setTimeout(executeSave, 300);
+      }
+    }
+  }, []); // no deps — reads everything from refs
 
-    const updated = await onUpdateDrawing(req);
-    setVersion(updated.version);
-  }, [title, version, onUpdateDrawing]);
+  // ── Debounced trigger ─────────────────────────────────────────────────────
+  const scheduleSave = useCallback(() => {
+    setSaveStatus('dirty');
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(executeSave, AUTOSAVE_DELAY);
+  }, [executeSave]);
 
-  const { saveStatus, errorMessage, lastSavedAt, saveNow } = useAutosave({
-    data: title, // Title change triggers autosave
-    onSave: handleSave,
-    delay: 2000,
-  });
-
-  // Excalidraw onChange callback
-  const handleExcalidrawChange = (
+  // ── Excalidraw onChange ───────────────────────────────────────────────────
+  // Update refs synchronously (no state → no re-render → no scroll jump),
+  // then schedule a debounced save only when the scene actually changed.
+  const handleExcalidrawChange = useCallback((
     elements: readonly ExcalidrawElement[],
     appState: AppState,
     files: BinaryFiles
@@ -121,10 +177,34 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
     const currentSceneVersion = getSceneVersion(elements);
     if (lastSceneVersionRef.current !== currentSceneVersion) {
       lastSceneVersionRef.current = currentSceneVersion;
-      // Scene version actually changed -> trigger debounced autosave
-      saveNow();
+      scheduleSave();
     }
-  };
+  }, [scheduleSave]);
+
+  // ── Title change also triggers autosave ──────────────────────────────────
+  const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setTitle(e.target.value);
+    titleRef.current = e.target.value;
+    scheduleSave();
+  }, [scheduleSave]);
+
+  // ── Ctrl+S / Cmd+S ───────────────────────────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        executeSave();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [executeSave]);
+
+  // Cleanup debounce on unmount
+  useEffect(() => () => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+  }, []);
 
   // Export to .excalidraw JSON file
   const handleExportJson = () => {
@@ -207,7 +287,7 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
           <input
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={handleTitleChange}
             placeholder="Çizim başlığı..."
             className="w-full bg-transparent text-lg font-bold text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 border-b border-transparent pb-0.5 transition"
           />
@@ -248,7 +328,7 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
 
           {/* Manual Save Button */}
           <button
-            onClick={() => saveNow()}
+            onClick={() => { if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current); executeSave(); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-500/20 transition active:scale-95"
             title="Manuel Kaydet (Ctrl + S)"
           >
@@ -335,7 +415,7 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
 
       {/* Footer Info Bar */}
       <div className="px-4 py-1.5 border-t border-slate-800/60 bg-slate-900/60 text-[10px] text-slate-400 flex items-center justify-between shrink-0">
-        <span>Çizim Sürümü: #{version}</span>
+        <span>Çizim Sürümü: #{versionRef.current}</span>
         {lastSavedAt && (
           <span>Son Kayıt: {lastSavedAt.toLocaleTimeString('tr-TR')}</span>
         )}

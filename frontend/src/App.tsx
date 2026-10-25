@@ -19,6 +19,7 @@ import { LoginForm } from './features/auth/LoginForm';
 import { AreaManagementModal } from './features/workspace/AreaManagementModal';
 import { TaskListPanel } from './features/tasks/TaskListPanel';
 import { DashboardPanel } from './features/dashboard/DashboardPanel';
+import { ATCShader } from './components/ui/atc-shader';
 const NoteListPanel = React.lazy(() =>
   import('./features/notes/NoteListPanel').then((m) => ({ default: m.NoteListPanel }))
 );
@@ -140,9 +141,18 @@ const DashboardContent: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-full bg-[#090d16] text-slate-100 overflow-hidden font-sans">
+    <div className="flex h-screen w-full bg-[#080c14] text-slate-100 overflow-hidden font-sans relative">
+      {/* Background ATC Shader Tunnel */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <ATCShader
+          speed={0.2}
+          overlay={true}
+          overlayClassName="bg-slate-950/80 backdrop-blur-[2px]"
+        />
+      </div>
+
       {/* Sidebar Navigation */}
-      <aside className="w-64 border-r border-slate-800/80 bg-slate-900/60 flex flex-col justify-between shrink-0 glass-panel">
+      <aside className="w-64 border-r border-slate-800/80 bg-slate-950/70 backdrop-blur-xl flex flex-col justify-between shrink-0 relative z-10">
         <div>
           {/* Logo & App Title */}
           <div className="p-5 border-b border-slate-800/80 flex items-center space-x-3">
@@ -259,9 +269,9 @@ const DashboardContent: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col overflow-y-auto bg-gradient-to-b from-[#0b101c] to-[#080c14]">
+      <main className="flex-1 flex flex-col overflow-y-auto bg-slate-950/35 relative z-10">
         {/* Top Header */}
-        <header className="h-16 border-b border-slate-800/80 px-8 flex items-center justify-between glass-panel sticky top-0 z-10">
+        <header className="h-16 border-b border-slate-800/80 px-8 flex items-center justify-between bg-slate-950/70 backdrop-blur-xl sticky top-0 z-20">
           <div>
             <h2 className="text-lg font-semibold text-white tracking-tight flex items-center gap-2">
               <span>{activeWorkspace?.name || 'Kişisel Çalışma Alanım'}</span>
@@ -324,8 +334,11 @@ const AuthConsumer: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-[#070b14] text-slate-300 font-sans">
-        <div className="flex flex-col items-center space-y-3">
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#070b14] text-slate-300 font-sans relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none z-0">
+          <ATCShader speed={0.3} overlay={true} overlayClassName="bg-slate-950/75 backdrop-blur-[2px]" />
+        </div>
+        <div className="flex flex-col items-center space-y-3 relative z-10 glass-panel p-8 rounded-2xl border border-slate-800">
           <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           <div className="text-xs font-mono text-slate-400">Oturum kontrol ediliyor...</div>
         </div>

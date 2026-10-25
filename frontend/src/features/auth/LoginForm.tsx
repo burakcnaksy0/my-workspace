@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Lock, User, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { ATCShader } from '../../components/ui/atc-shader';
 
 export const LoginForm: React.FC = () => {
   const { login, isLoading } = useAuth();
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('workspace_admin_password_change_me');
+  const [username, setUsername] = useState('burak');
+  const [password, setPassword] = useState('burakcan123.');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,9 +22,14 @@ export const LoginForm: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#070b14] relative overflow-hidden font-sans">
-      {/* Background ambient glowing orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
+      {/* Fullscreen XorDev ATC Shader Background */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <ATCShader
+          speed={0.4}
+          overlay={true}
+          overlayClassName="bg-slate-950/65 backdrop-blur-[1px] bg-radial-vignette"
+        />
+      </div>
 
       <div className="w-full max-w-md relative z-10">
         {/* Brand header */}
@@ -43,9 +49,6 @@ export const LoginForm: React.FC = () => {
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-blue-400" />
               Güvenli Oturum Girişi
-            </span>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              Aşama 2
             </span>
           </div>
 

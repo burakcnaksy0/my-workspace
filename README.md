@@ -1,6 +1,8 @@
 # Personal Workspace
 
-Kişisel ve profesyonel hayatı tek bir çatı altında organize etmeyi sağlayan, yerel çalışan (local-first), modüler ve Docker tabanlı kişisel çalışma platformu.
+Kişisel ve profesyonel hayatı tek bir çatı altında organize etmeyi sağlayan, **local-first**, modüler ve Docker tabanlı kişisel çalışma platformu.
+
+> **Durum:** MVP tamamlandı ve doğrulandı — Tüm 6 geliştirme aşaması tamamlanmış, testler geçmiş, Docker üzerinden çalışır durumda.
 
 ---
 
@@ -8,101 +10,252 @@ Kişisel ve profesyonel hayatı tek bir çatı altında organize etmeyi sağlaya
 
 ### Önkoşullar
 
-- **Docker** (v24+) ve **Docker Compose** (v2+)
+- **Docker** (v24+) ve **Docker Compose** (v2.20+)
 - İsteğe bağlı yerel geliştirme için:
   - **Java 21 LTS** & Maven
   - **Node.js 22+** & npm
 
-### Tek Komutla Çalıştırma
+### 1. Ortam Yapılandırması
 
 ```bash
-# 1. Proje dizinine geçin
+# Proje dizinine girin
 cd personal-workspace
 
-# 2. Örnek ortam değişkenlerini kopyalayın
+# Örnek ortam değişkenlerini kopyalayın ve düzenleyin
 cp .env.example .env
+```
 
-# 3. Başlatma betiğini çalıştırın (veya doğrudan docker compose up)
+`.env` dosyasını düzenleyerek en az şu değişkenleri ayarlayın:
+
+| Değişken | Açıklama | Örnek |
+|---|---|---|
+| `POSTGRES_PASSWORD` | Veritabanı parolası | Güçlü rastgele parola |
+| `BOOTSTRAP_USERNAME` | İlk admin kullanıcı adı | `admin` |
+| `BOOTSTRAP_PASSWORD` | İlk admin parolası (min 8 karakter) | Güçlü parola |
+
+> [!CAUTION]
+> `.env` dosyasını **asla Git'e commitlemeyin**. `.gitignore` tarafından zaten dışlanmıştır. `.env.example` dosyası güvenli şablondur.
+
+### 2. Servisleri Başlatın
+
+```bash
+# Betik ile (sağlık kontrolü bekler)
 ./scripts/start.sh
-# veya
+
+# veya doğrudan
 docker compose up -d --build
 ```
 
-Uygulama hazır olduğunda tarayıcınızdan erişebilirsiniz:
-- **Ana Arayüz:** [http://localhost:3000](http://localhost:3000)
-- **OpenAPI (Swagger):** [http://localhost:3000/api/swagger-ui.html](http://localhost:3000/api/swagger-ui.html)
-- **Altyapı Sağlık Kontrolü:** [http://localhost:3000/api/health](http://localhost:3000/api/health)
-- **Actuator Health Probe:** [http://localhost:3000/api/actuator/health](http://localhost:3000/api/actuator/health)
+### 3. Tarayıcıdan Erişin
+
+Konteynerler healthy durumuna geçince:
+
+- **🌐 Ana Arayüz:** [http://localhost:3000](http://localhost:3000)
+- **📖 OpenAPI / Swagger:** [http://localhost:3000/api/swagger-ui.html](http://localhost:3000/api/swagger-ui.html)
+- **🩺 Sağlık Kontrolü:** [http://localhost:3000/api/health](http://localhost:3000/api/health)
 
 ---
 
 ## 🏗 Mimari ve Teknoloji Yığını
 
-| Katman | Teknoloji | Açıklama |
-|---|---|---|
-| **Frontend** | React 18, TypeScript, Vite 6, Tailwind CSS | Same-Origin göreli `/api` rotalaması, modern glassmorphism arayüzü |
-| **Backend** | Java 21 LTS, Spring Boot 3.4.1 | Modüler monolit, Spring Security, Spring Session JDBC, OpenAPI |
-| **Veritabanı** | PostgreSQL 16 Alpine | UTC zaman dilimi, pgcrypto UUID, Flyway sürüm kontrollü geçişler |
-| **DevOps** | Docker Compose, Nginx | Multi-stage derlemeler, healthcheck mekanizmaları, kalıcı volume |
+| Katman | Teknoloji | Sürüm | Açıklama |
+|---|---|---|---|
+| **Frontend** | React, TypeScript, Vite | 18.3.1 / 5.x / 6.x | Same-Origin `/api` rotalaması, glassmorphism arayüz |
+| **CSS** | Tailwind CSS, shadcn/ui | 3.4 | Koyu tema, cam efektleri |
+| **Editörler** | Tiptap, Excalidraw, React Flow | güncel | Zengin metin, çizim, serbest pano |
+| **Backend** | Java 21 LTS, Spring Boot | 3.4.1 | Modüler monolit, Spring Security, Spring Session JDBC |
+| **Veritabanı** | PostgreSQL | 16-alpine | UTC, pgcrypto UUID, Flyway migration |
+| **DevOps** | Docker Compose, Nginx | v2 / 1.27 | Multi-stage build, healthcheck, kalıcı volume |
 
 ### 🔒 Güvenlik & Same-Origin Kuralı
 
-Uygulama tam **Same-Origin** prensibiyle çalışır:
-- Tarayıcı yalnızca `http://localhost:3000` ile konuşur.
-- İstemci kodunda backend hostu veya portu (8080) hardcoded olarak yer almaz.
-- Nginx statik dosyaları sunarken `/api/*` ve `/actuator/*` isteklerini backend container'ına reverse-proxy eder.
-- Bu sayede CORS gereksinimi ortadan kalkar, `HttpOnly` ve `SameSite=Lax` cookie oturumları ile çift-gönderimli (double-submit) CSRF koruması (`X-XSRF-TOKEN`) güvenle kullanılır.
+- Tarayıcı yalnızca `http://localhost:3000` ile konuşur — backend hostu hiçbir zaman istemci koduna yazılmaz.
+- Nginx, `/api/*` ve `/actuator/*` isteklerini backend container'ına reverse-proxy eder.
+- **CSRF Koruması:** Double-submit cookie (`X-XSRF-TOKEN` başlığı) ile korunur.
+- **Oturum:** Spring Session JDBC — container yeniden başlatılsa bile oturum korunur.
+- **Parola:** BCrypt hash, loglara asla yazılmaz.
+- **Giriş Hız Sınırı:** Art arda başarısız denemeler kilitlenir.
+
+---
+
+## 🎯 Özellikler
+
+| Modül | Özellikler |
+|---|---|
+| **Dashboard** | Bugünkü & geciken görevler, hızlı görev/not ekleme, son notlar |
+| **Görevler** | CRUD, öncelik (LOW/MEDIUM/HIGH), son tarih, durum (TODO/IN_PROGRESS/DONE), alan filtresi |
+| **Notlar** | Tiptap zengin metin editörü, otomatik/manuel kayıt, içerik arama, etiketler |
+| **Çizimler** | Excalidraw entegrasyonu, çoklu bağımsız belge, PNG/SVG/JSON dışa aktarma |
+| **Çalışma Panoları** | Sütunlu Kanban (dnd-kit) + Serbest tuval (React Flow), `mapped_status` senkronizasyonu |
+| **Alanlar** | İş & Kariyer, Yazılım Öğrenimi, Spor, Kişisel — düzenlenebilir |
 
 ---
 
 ## 💾 Kalıcı Veriler ve Docker Yaşam Döngüsü
 
 > [!CAUTION]
-> **ÖNEMLİ VERİ GÜVENLİĞİ UYARISI:**
-> - `docker compose down` komutu container'ları durdurur ve **veritabanı verilerinizi KORUR**.
-> - `docker compose down -v` komutu ise `postgres_data` volume'unu ve **BÜTÜN VERİLERİNİZİ KALICI OLARAK SİLER**! Verilerinizi silmek istemiyorsanız kesinlikle `-v` parametresini kullanmayınız.
+> **VERİ GÜVENLİĞİ:**
+> - `docker compose down` → Container'ları durdurur, **veriler KORUNUR** ✅
+> - `docker compose down -v` → Named volume'ları **KALICI OLARAK SİLER** ❌
+>
+> Verilerinizi silmek istemiyorsanız `-v` parametresini **kesinlikle kullanmayın**.
 
 ### Bilgisayar Açıldığında Otomatik Başlatma
 
-Container'lar `restart: unless-stopped` politikasıyla yapılandırılmıştır. Bilgisayarınız yeniden başlatıldığında otomatik devreye girmesi için Docker Engine'in açılışta başlaması yeterlidir:
+Container'lar `restart: unless-stopped` politikasıyla yapılandırılmıştır:
 
-- **Linux (Ubuntu/Debian):**
+- **Linux (systemd):**
   ```bash
   sudo systemctl enable docker
+  sudo systemctl start docker
   ```
-- **macOS & Windows:**
-  Docker Desktop ayarlarından *"Start Docker Desktop when you log in"* seçeneğini işaretleyin.
+- **macOS & Windows:** Docker Desktop → Ayarlar → *"Start Docker Desktop when you log in"* seçeneğini işaretleyin.
 
 ---
 
 ## 📦 Yedekleme ve Geri Yükleme
 
-Verileriniz kişisel olduğu için bağımsız yedekleme betikleri hazır olarak sunulmuştur:
+Verileriniz kişisel olduğu için bağımsız yedekleme betikleri hazır sunulmuştur.
 
 ### Veritabanı Yedeği Alma
+
 ```bash
 ./scripts/backup.sh
 ```
-*Bu komut `backups/` dizini altına tarih damgalı `.dump` dosyası ve SHA-256 doğrulama özeti (`.sha256`) oluşturur.*
+
+- `backups/` dizinine tarih damgalı `.dump` dosyası oluşturur (PostgreSQL custom format `-Fc`)
+- SHA-256 doğrulama özeti (`.sha256`) oluşturur
+- Sıfır baytlık yedek başarısız sayılır
+- Çıkış kodu 0 = başarı, 1 = hata
 
 ### Yedekten Geri Yükleme
+
 ```bash
 ./scripts/restore.sh backups/personal_workspace_YYYYMMDD_HHMMSS.dump
 ```
-*Geri yükleme öncesinde SHA-256 özeti doğrulanır ve kullanıcı onayı istenir.*
+
+- Geri yükleme öncesinde SHA-256 özeti doğrulanır
+- Kullanıcı onayı istenir (yanlışlıkla üzerine yazma önlenir)
+- `--clean --if-exists` ile mevcut verinin üzerine güvenle yazar
+
+> [!IMPORTANT]
+> `.env` dosyası (veritabanı parolaları) yedeğe dahil **edilmez**. `.env` dosyanızı ayrıca güvenli bir yerde (şifreli depolama, parola yöneticisi vb.) saklayın. `.env` olmadan geri yükleme çalışmaz.
 
 ---
 
 ## 🧪 Testleri Çalıştırma
 
-### Backend Testleri
+### Backend Birim Testleri (JUnit 5 / Mockito)
+
 ```bash
 cd backend
-./mvnw test
+./mvnw test -Dtest="TaskServiceTest,NoteServiceTest,DrawingServiceTest,BoardServiceTest,HealthControllerTest" --no-transfer-progress
 ```
 
-### Frontend Testleri
+**Sonuç:** 28/28 test geçer.
+
+### Backend Entegrasyon Testleri (Testcontainers + gerçek PostgreSQL)
+
+```bash
+cd backend
+./mvnw test -Dtest="PostgresContainerIntegrationTest" --no-transfer-progress
+```
+
+**Sonuç:** 1/1 test geçer — Bootstrap, Flyway migration ve entity doğrulaması gerçek PostgreSQL üzerinde çalışır.
+
+### Tüm Backend Testleri
+
+```bash
+cd backend
+./mvnw test --no-transfer-progress
+```
+
+**Sonuç:** 29/29 test geçer.
+
+### Frontend Birim Testleri (Vitest / React Testing Library)
+
 ```bash
 cd frontend
-npm test
+npm test -- --run
 ```
+
+**Sonuç:** 8/8 test geçer (4 test dosyası).
+
+### Frontend Tip Kontrolü
+
+```bash
+cd frontend
+npm run lint
+```
+
+**Sonuç:** 0 TypeScript hatası.
+
+---
+
+## ⚙️ Ortam Değişkenleri
+
+| Değişken | Zorunlu | Açıklama |
+|---|---|---|
+| `POSTGRES_DB` | Evet | Veritabanı adı |
+| `POSTGRES_USER` | Evet | Veritabanı kullanıcısı |
+| `POSTGRES_PASSWORD` | Evet | Veritabanı parolası |
+| `BOOTSTRAP_USERNAME` | Evet | İlk yönetici kullanıcı adı |
+| `BOOTSTRAP_PASSWORD` | Evet | İlk yönetici parolası (≥8 karakter) |
+| `SESSION_SECRET` | Evet | Spring Session şifreleme anahtarı (64+ karakter) |
+| `SPRING_PROFILES_ACTIVE` | Hayır | Aktif Spring profili (varsayılan: `prod`) |
+| `MAX_DRAWING_SIZE_MB` | Hayır | Çizim boyut sınırı (varsayılan: 10 MB) |
+
+---
+
+## 🗄️ Veritabanı Migrasyonları
+
+Flyway migrasyonları uygulama başlarken **otomatik** uygulanır. Mevcut migration dosyası:
+
+| Versiyon | Dosya | İçerik |
+|---|---|---|
+| `V1` | `V1__init_schema.sql` | Tam şema: users, workspaces, areas, tasks, notes, drawings, boards, board_columns, board_items, board_edges, tags, spring_session |
+
+`ddl-auto=validate` kullanılır; Hibernate şemayı otomatik oluşturmaz/değiştirmez.
+
+---
+
+## 📁 Proje Yapısı
+
+```
+workspace/
+├── backend/                    # Spring Boot 3.4.1 (Java 21)
+│   ├── src/main/java/com/personalworkspace/
+│   │   ├── common/             # SecurityConfig, GlobalExceptionHandler
+│   │   ├── identity/           # User, AuthService, LoginRateLimiter
+│   │   ├── workspace/          # Workspace, Membership, Area
+│   │   ├── task/               # Task CRUD ve durum yönetimi
+│   │   ├── notes/              # Note, Tag, Tiptap JSON saklama
+│   │   ├── drawings/           # DrawingDocument, Excalidraw saklama
+│   │   ├── boards/             # Board, BoardColumn, BoardItem, BoardEdge
+│   │   └── dashboard/          # Dashboard metrikleri
+│   ├── src/main/resources/db/migration/V1__init_schema.sql
+│   └── Dockerfile              # Multi-stage: maven → eclipse-temurin:21-jre
+├── frontend/                   # React 18 + TypeScript + Vite 6
+│   ├── src/features/           # auth, dashboard, tasks, notes, drawings, boards
+│   ├── nginx.conf              # Same-Origin reverse proxy
+│   └── Dockerfile              # Multi-stage: node:22-alpine → nginx:1.27-alpine
+├── scripts/
+│   ├── start.sh                # Docker compose up + health bekleme
+│   ├── backup.sh               # pg_dump (-Fc) + SHA-256
+│   └── restore.sh              # SHA-256 doğrulama + pg_restore
+├── docs/
+│   ├── DECISIONS.md            # Mimari Karar Kayıtları (ADR-001 — ADR-009)
+│   └── TESLIM_RAPORU.md        # Teslim ve durum raporu
+├── compose.yaml
+├── .env.example
+└── README.md
+```
+
+---
+
+## 🐛 Bilinen Sınırlamalar
+
+- Çöp kutusu / geri alma (soft delete) V2'ye bırakıldı; silmeler kalıcıdır (UI'da onay istenir).
+- Otomatik zamanlanmış yedekleme MVP dışında; manuel yedekleme betiği kullanılır.
+- `ContentLink` (içerikler arası ilişkilendirme) yalnızca veri modelinde var; UI V2'de.
+- Playwright E2E testleri eklenmedi; birim ve entegrasyon testleri mevcut.

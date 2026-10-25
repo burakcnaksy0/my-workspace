@@ -21,6 +21,8 @@ import {
   Loader2,
   Clock,
   ArrowLeft,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import type { Drawing, UpdateDrawingRequest } from '../../types/drawing';
 
@@ -34,6 +36,8 @@ interface DrawingEditorProps {
   onUpdateDrawing: (req: UpdateDrawingRequest) => Promise<Drawing>;
   onDeleteDrawing: (drawingId: string) => Promise<void>;
   onBackToList?: () => void;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 export const DrawingEditor: React.FC<DrawingEditorProps> = ({
@@ -41,6 +45,8 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
   onUpdateDrawing,
   onDeleteDrawing,
   onBackToList,
+  isFullscreen = false,
+  onToggleFullscreen,
 }) => {
   const [title, setTitle] = useState(drawing.title);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -271,7 +277,13 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-130px)] bg-slate-900/60 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl backdrop-blur-sm">
+    <div
+      className={`flex flex-col bg-slate-900/60 border border-slate-800 overflow-hidden shadow-2xl backdrop-blur-sm ${
+        isFullscreen
+          ? 'h-full w-full rounded-none'
+          : 'h-[calc(100vh-130px)] rounded-2xl'
+      }`}
+    >
       {/* Top Header & Toolbar */}
       <div className="p-3.5 border-b border-slate-800/80 bg-slate-900/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3 flex-1 min-w-[240px]">
@@ -335,6 +347,24 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
             <Save className="w-3.5 h-3.5" />
             Kaydet
           </button>
+
+          {/* Fullscreen Toggle Button */}
+          {onToggleFullscreen && (
+            <button
+              onClick={onToggleFullscreen}
+              className={`p-1.5 rounded-lg border transition ${
+                isFullscreen
+                  ? 'bg-purple-600/20 border-purple-500/50 text-purple-300 hover:bg-purple-600/30'
+                  : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-700/80 hover:text-white'
+              }`}
+              title={isFullscreen ? 'Tam Ekrandan Çık (Escape)' : 'Tam Ekran Moduna Geç'}
+            >
+              {isFullscreen
+                ? <Minimize2 className="w-4 h-4" />
+                : <Maximize2 className="w-4 h-4" />
+              }
+            </button>
+          )}
 
           {/* Export Dropdown */}
           <div className="relative">

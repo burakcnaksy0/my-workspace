@@ -144,5 +144,28 @@ Bu doküman, Personal Workspace geliştirme sürecinde alınan kritik mimari, te
 - **Alternatifler:**
   - *Canvas'ı saf PNG/JPEG olarak saklamak:* Düzenleme kabiliyetini yok eder, kesinlikle reddedildi.
 
+---
+
+## ADR-009: Genel Çalışma Panoları (Boards), Çoklu Görünüm ve Referans Bütünlüğü Mimarisi
+
+- **Tarih:** 2026-10-25
+- **Durum:** Kabul Edildi
+- **Karar:**
+  - `Board` modeli hem **Sütunlu Kanban (`COLUMNS`)** hem de **Serbest Tuval (`FREEFORM`)** görünümlerini destekler.
+  - Sütunlar JSON içinde değil, ayrı `BoardColumn` tablosunda saklanır ve `mapped_status` (`TODO`, `IN_PROGRESS`, `DONE`) alanı ile görev durumu senkronizasyonu sağlar.
+  - Kart bir sütuna taşındığında görevin durumu (`status`) ve tamamlanma tarihi (`completed_at`) otomatik güncellenir.
+  - `BoardItem` tablosu polimorfik referans (`item_type` IN ('TASK', 'NOTE', 'DRAWING'), `item_id`) ile çalışır:
+    - Aynı görev veya not birden fazla panoda gösterilebilir; `Task`/`Note` kayıtları çoğaltılmaz.
+    - Bir `BoardItem` panodan silindiğinde asıl görev/not **asla silinmez**.
+    - Bir görev veya not silindiğinde ise yetim kalmaması için bağlı `BoardItem` ve `BoardEdge` kayıtları servis katmanında temizlenir.
+    - Çalışma alanı izolasyonu (`workspaceId`) servis katmanında sıkı biçimde doğrulanır.
+  - Serbest panoda (`FREEFORM`) kartlar tuval üzerinde `position_x`, `position_y` koordinatlarıyla yer alır ve `BoardEdge` ile kartlar arası bağlantılar (yönlü kenarlar) saklanır.
+  - Toplu taşıma/sıralama için `PATCH /api/workspaces/{workspaceId}/boards/{boardId}/items` ile tek işlemde (batch) güncelleme sağlanır.
+- **Gerekçe:**
+  - Görev durumunun kart hareketiyle çift yönlü tutarlı kalması ve kartların panodan kaldırılmasının asıl veriyi kaybetmemesi temel gereksinimdir.
+  - Referans modeli sayesinde sistemde veri tekrarı oluşmaz.
+- **Alternatifler:**
+  - *Panolar için ayrı kopyalama modeli:* Görevleri panoya kopyalamak durum eşzamanlama ve çift kayıt sorunlarına yol açtığı için kesinlikle reddedildi.
+
 
 

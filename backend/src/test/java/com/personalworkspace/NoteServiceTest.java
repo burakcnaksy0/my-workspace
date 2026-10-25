@@ -47,6 +47,9 @@ class NoteServiceTest {
     @Mock
     private WorkspaceAccessService accessService;
 
+    @Mock
+    private com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository;
+
     private NoteService noteService;
 
     private final UUID workspaceId = UUID.randomUUID();
@@ -55,7 +58,7 @@ class NoteServiceTest {
 
     @BeforeEach
     void setUp() {
-        noteService = new NoteService(noteRepository, tagRepository, areaRepository, accessService);
+        noteService = new NoteService(noteRepository, tagRepository, areaRepository, accessService, boardItemRepository);
     }
 
     @Test

@@ -41,6 +41,9 @@ class TaskServiceTest {
     @Mock
     private WorkspaceAccessService accessService;
 
+    @Mock
+    private com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository;
+
     @InjectMocks
     private TaskService taskService;
 

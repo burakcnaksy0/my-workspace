@@ -139,6 +139,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <release>21</release>
+                    <fork>true</fork>
+                    <executable>${JAVA_HOME}/bin/javac</executable>
                 </configuration>
             </plugin>
         </plugins>

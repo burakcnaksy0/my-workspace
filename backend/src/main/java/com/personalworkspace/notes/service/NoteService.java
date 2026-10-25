@@ -38,16 +38,19 @@ public class NoteService {
     private final TagRepository tagRepository;
     private final AreaRepository areaRepository;
     private final WorkspaceAccessService accessService;
+    private final com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository;
 
     public NoteService(
             NoteRepository noteRepository,
             TagRepository tagRepository,
             AreaRepository areaRepository,
-            WorkspaceAccessService accessService) {
+            WorkspaceAccessService accessService,
+            com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository) {
         this.noteRepository = noteRepository;
         this.tagRepository = tagRepository;
         this.areaRepository = areaRepository;
         this.accessService = accessService;
+        this.boardItemRepository = boardItemRepository;
     }
 
     public NoteDto createNote(UUID workspaceId, UUID userId, CreateNoteRequest req) {
@@ -145,8 +148,9 @@ public class NoteService {
         Note note = noteRepository.findByIdAndWorkspaceId(noteId, workspaceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Not bulunamadı: " + noteId));
 
+        boardItemRepository.deleteByItemTypeAndItemId("NOTE", noteId);
         noteRepository.delete(note);
-        log.info("Not silindi: id={}", noteId);
+        log.info("Not silindi (panolardaki kartlar temizlendi): id={}", noteId);
     }
 
     @Transactional(readOnly = true)

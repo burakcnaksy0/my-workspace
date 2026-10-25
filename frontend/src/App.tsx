@@ -25,6 +25,9 @@ const NoteListPanel = React.lazy(() =>
 const DrawingListPanel = React.lazy(() =>
   import('./features/drawings/DrawingListPanel').then((m) => ({ default: m.DrawingListPanel }))
 );
+const BoardListPanel = React.lazy(() =>
+  import('./features/boards/BoardListPanel').then((m) => ({ default: m.BoardListPanel }))
+);
 
 const ICON_MAP: Record<string, React.ElementType> = {
   briefcase: Briefcase,
@@ -50,13 +53,21 @@ const DashboardContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [isAreaModalOpen, setIsAreaModalOpen] = useState(false);
 
-  const navItems = [
-    { id: 'overview' as TabId, label: 'Genel Bakış', icon: LayoutDashboard },
-    { id: 'tasks' as TabId, label: 'Günlük Plan & Görevler', icon: CalendarCheck },
-    { id: 'notes' as TabId, label: 'Notlar (Tiptap)', icon: FileText },
-    { id: 'drawings' as TabId, label: 'Çizimler (Excalidraw)', icon: PenTool },
-    { id: 'boards' as TabId, label: 'Çalışma Panoları', icon: Kanban, badge: 'Aşama 6' },
-    { id: 'areas' as TabId, label: 'Alanlar', icon: Compass, count: areas.length },
+  interface NavItem {
+    id: TabId;
+    label: string;
+    icon: React.ElementType;
+    badge?: string;
+    count?: number;
+  }
+
+  const navItems: NavItem[] = [
+    { id: 'overview', label: 'Genel Bakış', icon: LayoutDashboard },
+    { id: 'tasks', label: 'Günlük Plan & Görevler', icon: CalendarCheck },
+    { id: 'notes', label: 'Notlar (Tiptap)', icon: FileText },
+    { id: 'drawings', label: 'Çizimler (Excalidraw)', icon: PenTool },
+    { id: 'boards', label: 'Çalışma Panoları', icon: Kanban },
+    { id: 'areas', label: 'Alanlar', icon: Compass, count: areas.length },
   ];
 
   const renderContent = () => {
@@ -74,6 +85,8 @@ const DashboardContent: React.FC = () => {
         return <NoteListPanel />;
       case 'drawings':
         return <DrawingListPanel />;
+      case 'boards':
+        return <BoardListPanel />;
       case 'areas':
         return (
           <div className="space-y-4">

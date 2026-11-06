@@ -127,6 +127,49 @@ Verileriniz kişisel olduğu için bağımsız yedekleme betikleri hazır sunulm
 - SHA-256 doğrulama özeti (`.sha256`) oluşturur
 - Sıfır baytlık yedek başarısız sayılır
 - Çıkış kodu 0 = başarı, 1 = hata
+- Saklama politikası: `BACKUP_RETENTION_DAYS` (varsayılan 14) günden eski yedekler otomatik silinir; `0` değeri temizliği kapatır
+
+### Planlı Otomatik Yedekleme
+
+Betik tek seferliktir; düzenli aralık için sistem zamanlayıcınızdan yararlanın:
+
+**cron** (her gece 03:00):
+
+```cron
+0 3 * * * /yol/ki/proje/scripts/backup.sh >> /yol/ki/proje/backups/backup.log 2>&1
+```
+
+**systemd timer** (kron sonrası çalışan makinelerde güvenilir seçenek):
+
+```ini
+# ~/.config/systemd/user/workspace-backup.service
+[Unit]
+Description=Personal Workspace DB backup
+
+[Service]
+Type=oneshot
+ExecStart=/yol/ki/proje/scripts/backup.sh
+```
+
+```ini
+# ~/.config/systemd/user/workspace-backup.timer
+[Unit]
+Description=Daily workspace backup
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+```bash
+systemctl --user enable --now workspace-backup.timer
+```
+
+> [!NOTE]
+> Zamanlayıcının `docker` grubu erişimi olan bir kullanıcıyla çalışması gerekir. Yedekler makineyle aynı diskte durduğu için kritik verilerde `backups/` dizisini harici/kirilabilir bir medyaya da kopyalamanız önerilir.
 
 ### Yedekten Geri Yükleme
 
@@ -204,6 +247,7 @@ npm run lint
 | `BOOTSTRAP_DEFAULT_WORKSPACE` | Hayır | İlk çalışma alanı adı (varsayılan: `Kişisel Çalışma Alanım`) |
 | `SESSION_COOKIE_SECURE` | Hayır | Oturum çerezi `Secure` bayrağı (varsayılan: `false`, yalnızca localhost HTTP) |
 | `SESSION_MAX_INACTIVE_INTERVAL_SECONDS` | Hayır | Oturum boşta kalma süresi (varsayılan: 86400) |
+| `BACKUP_RETENTION_DAYS` | Hayır | `scripts/backup.sh` saklama süresi, gün (varsayılan: 14; `0` = temizleme yok) |
 | `SPRING_PROFILES_ACTIVE` | Hayır | Aktif Spring profili (varsayılan: `prod`) |
 | `FRONTEND_PORT` | Hayır | Host üzerindeki erişim portu (varsayılan: 3000) |
 

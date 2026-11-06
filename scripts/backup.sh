@@ -44,3 +44,13 @@ FILE_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
 echo "[+] Yedek başarıyla tamamlandı!"
 echo "    Dosya:     $BACKUP_FILE ($FILE_SIZE)"
 echo "    Doğrulama: $CHECKSUM_FILE"
+
+# Retention: keep only the last N days of backups (default 14).
+# Set BACKUP_RETENTION_DAYS in .env to change; 0 disables cleanup.
+RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
+if [ "$RETENTION_DAYS" -gt 0 ]; then
+  PRUNED=$(find "$BACKUP_DIR" -maxdepth 1 \( -name 'personal_workspace_*.dump' -o -name 'personal_workspace_*.dump.sha256' \) -mtime +"$RETENTION_DAYS" -print -delete | wc -l)
+  if [ "$PRUNED" -gt 0 ]; then
+    echo "[+] Saklama politikası: $RETENTION_DAYS günden eski $PRUNED dosya silindi."
+  fi
+fi

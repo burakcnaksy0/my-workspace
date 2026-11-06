@@ -48,6 +48,18 @@ if [ "$CONFIRM" != "e" ] && [ "$CONFIRM" != "E" ] && [ "$CONFIRM" != "y" ] && [ 
 fi
 
 echo "[*] Mevcut veritabanı bağlantıları sonlandırılıyor ve geri yükleniyor..."
-docker exec -i personal-workspace-postgres pg_restore -U "$DB_USER" -d "$DB_NAME" --clean --if-exists < "$RESTORE_FILE" || true
+set +e
+docker exec -i personal-workspace-postgres pg_restore -U "$DB_USER" -d "$DB_NAME" --clean --if-exists < "$RESTORE_FILE"
+RESTORE_RC=$?
+set -e
 
-echo "[+] Geri yükleme işlemi tamamlandı."
+if [ "$RESTORE_RC" -ne 0 ]; then
+  # --clean --if-exists sırasında olmayan nesne silme denemeleri de sıfır-olmayan
+  # koda yol açabilir; bu yüzden uyarı ver ama kullanıcıyı doğrulamaya yönlendir.
+  echo "[!] Uyarı: pg_restore sıfır-olmayan çıkış kodu döndürdü ($RESTORE_RC)."
+  echo "    Bu, --clean sırasında bulunamayan nesnelerden kaynaklanabilir."
+  echo "    Verilerinizi kontrol edin, gerekiyorsa çıktıyı tekrar çalıştırın."
+  exit "$RESTORE_RC"
+fi
+
+echo "[+] Geri yükleme işlemi başarıyla tamamlandı."

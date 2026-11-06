@@ -2,9 +2,9 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Copy dependency manifests
-COPY package.json package-lock.json* ./
-RUN npm install
+# Copy dependency manifests and install reproducibly from the lockfile
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
 
 # Copy source code and build
 COPY . .

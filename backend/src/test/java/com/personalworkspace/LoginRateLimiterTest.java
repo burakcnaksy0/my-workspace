@@ -1,5 +1,6 @@
 package com.personalworkspace;
 
+import com.personalworkspace.common.exception.TooManyRequestsException;
 import com.personalworkspace.identity.service.LoginRateLimiter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,10 +23,12 @@ class LoginRateLimiterTest {
 
         // 5th failed attempt triggers lock
         limiter.recordFailedAttempt(username);
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        TooManyRequestsException ex = assertThrows(TooManyRequestsException.class, () ->
             limiter.checkBlocked(username)
         );
-        assertTrue(ex.getMessage().contains("kilitlendi"));
+        // Mesaj kullanıcı adı varlığı hakkında bilgi vermemeli (enumeration koruması)
+        assertTrue(ex.getMessage().contains("deneme"));
+        assertFalse(ex.getMessage().contains(username));
     }
 
     @Test

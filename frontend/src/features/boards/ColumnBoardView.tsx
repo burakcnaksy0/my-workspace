@@ -97,7 +97,7 @@ export const ColumnBoardView: React.FC<ColumnBoardViewProps> = ({
   const [cardMenuOpenId, setCardMenuOpenId] = useState<string | null>(null);
 
   // Detail Modal State
-  const [selectedCardForDetail, setSelectedCardForDetail] = useState<BoardItem | null>(null);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [forceExerciseModal, setForceExerciseModal] = useState(false);
 
   // Inline Quick Add state per column
@@ -107,6 +107,11 @@ export const ColumnBoardView: React.FC<ColumnBoardViewProps> = ({
 
   const columns = board.columns || [];
   const items = board.items || [];
+
+  // Modal her zaman panodaki GÜNCEL öğeyi gösterir (bayat kopya => sürüm uyuşmazlığı/409 engeli)
+  const selectedCardForDetail = selectedCardId
+    ? items.find((i) => i.id === selectedCardId) ?? null
+    : null;
 
   // Pano bağlamı (Fitness mı, genel iş/proje mi?)
   const isFitness = isFitnessContext(board.name);
@@ -421,7 +426,7 @@ export const ColumnBoardView: React.FC<ColumnBoardViewProps> = ({
                   onDragStart={handleDragStart}
                   onClick={(item) => {
                     setForceExerciseModal(false);
-                    setSelectedCardForDetail(item);
+                    setSelectedCardId(item.id);
                   }}
                   getPriorityBadgeClass={getPriorityBadgeClass}
                 />
@@ -519,7 +524,7 @@ export const ColumnBoardView: React.FC<ColumnBoardViewProps> = ({
                       onDragStart={handleDragStart}
                       onClick={(item) => {
                         setForceExerciseModal(false);
-                        setSelectedCardForDetail(item);
+                        setSelectedCardId(item.id);
                       }}
                       getPriorityBadgeClass={getPriorityBadgeClass}
                     />
@@ -675,7 +680,7 @@ export const ColumnBoardView: React.FC<ColumnBoardViewProps> = ({
               item={selectedCardForDetail}
               workspaceId={board.workspaceId}
               onClose={() => {
-                setSelectedCardForDetail(null);
+                setSelectedCardId(null);
                 setForceExerciseModal(false);
               }}
               onRefreshBoard={onRefresh}
@@ -688,7 +693,7 @@ export const ColumnBoardView: React.FC<ColumnBoardViewProps> = ({
             item={selectedCardForDetail}
             workspaceId={board.workspaceId}
             onClose={() => {
-              setSelectedCardForDetail(null);
+              setSelectedCardId(null);
               setForceExerciseModal(false);
             }}
             onRefreshBoard={onRefresh}

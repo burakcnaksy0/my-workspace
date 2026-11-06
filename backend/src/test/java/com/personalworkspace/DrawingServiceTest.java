@@ -35,6 +35,9 @@ class DrawingServiceTest {
     @Mock
     private WorkspaceAccessService accessService;
 
+    @Mock
+    private com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository;
+
     private DrawingService drawingService;
 
     private final UUID workspaceId = UUID.randomUUID();
@@ -42,7 +45,7 @@ class DrawingServiceTest {
 
     @BeforeEach
     void setUp() {
-        drawingService = new DrawingService(drawingRepository, accessService);
+        drawingService = new DrawingService(drawingRepository, accessService, boardItemRepository);
     }
 
     @Test
@@ -159,5 +162,7 @@ class DrawingServiceTest {
         drawingService.deleteDrawing(workspaceId, drawingId, userId);
 
         verify(drawingRepository).delete(existing);
+        // Panolardaki hayalet kartların kalmaması için ilişikli kartlar da silinmeli
+        verify(boardItemRepository).deleteByItemTypeAndItemId("DRAWING", drawingId);
     }
 }

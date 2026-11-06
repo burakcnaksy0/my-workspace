@@ -59,7 +59,7 @@ public class AuthService {
             loginRateLimiter.recordSuccess(username);
 
             // Session fixation protection
-            HttpSession session = httpRequest.getSession(true);
+            httpRequest.getSession(true);
             httpRequest.changeSessionId();
 
             // Store in SecurityContext
@@ -69,7 +69,7 @@ public class AuthService {
             securityContextRepository.saveContext(context, httpRequest, httpResponse);
 
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-            log.info("User '{}' successfully authenticated. Session ID: {}", username, session.getId());
+            log.info("Kullanıcı '{}' başarıyla kimlik doğruladı.", username);
 
             return buildAuthUserDto(userDetails.getId(), userDetails.getUsername());
 

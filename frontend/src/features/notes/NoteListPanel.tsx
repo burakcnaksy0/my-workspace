@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Clock,
   ChevronRight,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { apiRequest } from '../../lib/api';
@@ -21,13 +22,24 @@ export const NoteListPanel: React.FC = () => {
   const [activeNote, setActiveNote] = useState<Note | null>(null);
   const [tags, setTags] = useState<TagItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditorLoading, setIsEditorLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  // Dar ekranlarda liste ve editörü aynı anda göstermek yerine tek panel gösterilir.
+  const [isListVisible, setIsListVisible] = useState(true);
 
   const workspaceId = activeWorkspace?.id;
+
+  // Debounce search input by 300ms
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   // Fetch Tags
   const fetchTags = useCallback(async () => {
@@ -46,7 +58,7 @@ export const NoteListPanel: React.FC = () => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
-      if (searchQuery.trim()) params.append('q', searchQuery.trim());
+      if (debouncedSearchQuery.trim()) params.append('q', debouncedSearchQuery.trim());
       if (selectedAreaId) params.append('areaId', selectedAreaId);
       if (selectedTag) params.append('tag', selectedTag);
       params.append('size', '50');
@@ -59,7 +71,7 @@ export const NoteListPanel: React.FC = () => {
       // If activeNote is no longer in the list and list is not empty, or if no active note, pick first
       if (data.content.length > 0) {
         if (!activeNote || !data.content.some((n) => n.id === activeNote.id)) {
-          loadNoteDetails(data.content[0].id);
+          loadNoteDetails(data.content[0].id, false);
         }
       } else {
         setActiveNote(null);
@@ -69,7 +81,7 @@ export const NoteListPanel: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [workspaceId, searchQuery, selectedAreaId, selectedTag]);
+  }, [workspaceId, debouncedSearchQuery, selectedAreaId, selectedTag]);
 
   useEffect(() => {
     fetchNotes();
@@ -77,12 +89,13 @@ export const NoteListPanel: React.FC = () => {
   }, [fetchNotes, fetchTags]);
 
   // Load single note with content for editor
-  const loadNoteDetails = async (noteId: string) => {
+  const loadNoteDetails = async (noteId: string, revealEditor = true) => {
     if (!workspaceId) return;
     setIsEditorLoading(true);
     try {
       const noteData = await apiRequest<Note>(`/api/workspaces/${workspaceId}/notes/${noteId}`);
       setActiveNote(noteData);
+      if (revealEditor) setIsListVisible(false);
     } catch (err) {
       console.error('Not detayları yüklenemedi:', err);
     } finally {
@@ -114,6 +127,7 @@ export const NoteListPanel: React.FC = () => {
       fetchTags();
       await fetchNotes();
       setActiveNote(created);
+      setIsListVisible(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Not oluşturulurken hata meydana geldi');
     } finally {
@@ -164,6 +178,7 @@ export const NoteListPanel: React.FC = () => {
         method: 'DELETE',
       });
       setActiveNote(null);
+      setIsListVisible(true);
       await fetchNotes();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Not silinemedi');
@@ -171,9 +186,13 @@ export const NoteListPanel: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex min-h-0 w-full h-full gap-5 p-4 sm:p-6 overflow-hidden bg-transparent">
+    <div className="flex-1 flex min-h-0 w-full h-full gap-4 sm:gap-5 p-3 sm:p-6 overflow-hidden bg-transparent">
       {/* Left Sidebar: Note List & Search */}
-      <div className="w-80 md:w-96 flex flex-col shrink-0 bg-slate-900/80 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl backdrop-blur-md">
+      <div
+        className={`${
+          isListVisible ? 'flex' : 'hidden xl:flex'
+        } w-full xl:w-80 2xl:w-96 flex-col shrink-0 bg-slate-900/80 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl backdrop-blur-md`}
+      >
         {/* Header & New Note Button */}
         <div className="p-4 border-b border-slate-800/80 space-y-3">
           <div className="flex items-center justify-between">
@@ -344,7 +363,18 @@ export const NoteListPanel: React.FC = () => {
       </div>
 
       {/* Right Main Area: Note Editor */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <div
+        className={`${
+          isListVisible ? 'hidden xl:flex' : 'flex'
+        } flex-1 flex-col h-full min-w-0 overflow-hidden`}
+      >
+        <button
+          onClick={() => setIsListVisible(true)}
+          className="xl:hidden mb-2 self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium transition shrink-0"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Notlara Dön
+        </button>
         {isEditorLoading ? (
           <div className="flex-1 flex flex-col items-center justify-center bg-slate-900/40 rounded-2xl border border-slate-800 text-slate-400 text-sm">
             <RefreshCw className="w-6 h-6 animate-spin text-blue-400 mb-2" />

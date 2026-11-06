@@ -107,7 +107,7 @@ class TaskServiceTest {
         Task task = createMockTask("TODO");
         when(accessService.checkWorkspaceAccess(workspaceId, userId)).thenReturn(mockMembership);
         when(taskRepository.findByIdAndWorkspaceId(task.getId(), workspaceId)).thenReturn(Optional.of(task));
-        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(taskRepository.saveAndFlush(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         TaskStatusUpdateRequest request = new TaskStatusUpdateRequest("DONE", 0L);
         TaskDto result = taskService.updateTaskStatus(workspaceId, task.getId(), request, userId);
@@ -124,7 +124,7 @@ class TaskServiceTest {
 
         when(accessService.checkWorkspaceAccess(workspaceId, userId)).thenReturn(mockMembership);
         when(taskRepository.findByIdAndWorkspaceId(task.getId(), workspaceId)).thenReturn(Optional.of(task));
-        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(taskRepository.saveAndFlush(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         TaskStatusUpdateRequest request = new TaskStatusUpdateRequest("TODO", 0L);
         TaskDto result = taskService.updateTaskStatus(workspaceId, task.getId(), request, userId);
@@ -183,7 +183,7 @@ class TaskServiceTest {
         when(accessService.checkWorkspaceAccess(workspaceId, userId)).thenReturn(mockMembership);
         when(taskRepository.findByIdAndWorkspaceId(task.getId(), workspaceId)).thenReturn(Optional.of(task));
         when(areaRepository.findByIdAndWorkspaceId(areaId, workspaceId)).thenReturn(Optional.of(area));
-        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(taskRepository.saveAndFlush(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Instant dueDate = Instant.now().plusSeconds(86400);
         UpdateTaskRequest request = new UpdateTaskRequest(

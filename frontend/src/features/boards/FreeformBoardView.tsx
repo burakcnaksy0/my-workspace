@@ -11,6 +11,9 @@ import {
   Info,
 } from 'lucide-react';
 import { boardsApi } from './api';
+import { ItemDetailModal } from './ItemDetailModal';
+import { ExerciseDetailModal } from './ExerciseDetailModal';
+import { isRecognizedExercise, isFitnessContext } from './exerciseDatabase';
 import type { BoardDetails, BoardItem, BoardEdge } from './types';
 
 interface FreeformBoardViewProps {
@@ -31,6 +34,17 @@ export const FreeformBoardView: React.FC<FreeformBoardViewProps> = ({
   const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
+  // Detail Modal State
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [forceExerciseModal, setForceExerciseModal] = useState(false);
+  const hasMovedRef = useRef(false);
+  const isFitness = isFitnessContext(board.name);
+
+  // Modal her zaman panodaki GÜNCEL öğeyi gösterir (bayat kopya => sürüm uyuşmazlığı/409 engeli)
+  const selectedCardForDetail = selectedCardId
+    ? items.find((i) => i.id === selectedCardId) ?? null
+    : null;
+
   useEffect(() => {
     setItems(board.items || []);
     setEdges(board.edges || []);
@@ -39,10 +53,55 @@ export const FreeformBoardView: React.FC<FreeformBoardViewProps> = ({
   const CARD_WIDTH = 240;
   const CARD_HEIGHT = 120;
 
+  // Window-level mouse listeners so dragging is butter-smooth even if mouse leaves container
+  useEffect(() => {
+    if (!draggingItemId) return;
+
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      hasMovedRef.current = true;
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newX = Math.max(20, Math.round(e.clientX - containerRect.left - dragOffset.x));
+      const newY = Math.max(20, Math.round(e.clientY - containerRect.top - dragOffset.y));
+
+      setItems((prev) =>
+        prev.map((i) => (i.id === draggingItemId ? { ...i, positionX: newX, positionY: newY } : i))
+      );
+    };
+
+    const handleWindowMouseUp = async () => {
+      const currentItem = items.find((i) => i.id === draggingItemId);
+      const idToUpdate = draggingItemId;
+      setDraggingItemId(null);
+
+      if (currentItem && hasMovedRef.current) {
+        try {
+          await boardsApi.batchUpdateItems(board.workspaceId, board.id, [
+            {
+              id: idToUpdate,
+              positionX: currentItem.positionX,
+              positionY: currentItem.positionY,
+            },
+          ]);
+        } catch (err) {
+          console.error('Konum kaydedilirken hata:', err);
+        }
+      }
+    };
+
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+    };
+  }, [draggingItemId, dragOffset, items, board.workspaceId, board.id]);
+
   // Sürükleme başlatma
   const handleMouseDown = (e: React.MouseEvent, item: BoardItem) => {
     if (connectingSourceId) return; // Bağlantı modunda sürüklemeyi engelle
     e.stopPropagation();
+    hasMovedRef.current = false;
 
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setDragOffset({
@@ -50,42 +109,6 @@ export const FreeformBoardView: React.FC<FreeformBoardViewProps> = ({
       y: e.clientY - rect.top,
     });
     setDraggingItemId(item.id);
-  };
-
-  // Mouse hareketi
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!draggingItemId || !containerRef.current) return;
-
-    const containerRect = containerRef.current.getBoundingClientRect();
-    const newX = Math.max(20, Math.round(e.clientX - containerRect.left - dragOffset.x));
-    const newY = Math.max(20, Math.round(e.clientY - containerRect.top - dragOffset.y));
-
-    setItems((prev) =>
-      prev.map((i) => (i.id === draggingItemId ? { ...i, positionX: newX, positionY: newY } : i))
-    );
-  };
-
-  // Sürükleme bitişi ve konumu kaydetme
-  const handleMouseUp = async () => {
-    if (!draggingItemId) return;
-
-    const currentItem = items.find((i) => i.id === draggingItemId);
-    const idToUpdate = draggingItemId;
-    setDraggingItemId(null);
-
-    if (currentItem) {
-      try {
-        await boardsApi.batchUpdateItems(board.workspaceId, board.id, [
-          {
-            id: idToUpdate,
-            positionX: currentItem.positionX,
-            positionY: currentItem.positionY,
-          },
-        ]);
-      } catch (err) {
-        console.error('Konum kaydedilirken hata:', err);
-      }
-    }
   };
 
   // Bağlantı (Edge) oluşturma
@@ -135,9 +158,9 @@ export const FreeformBoardView: React.FC<FreeformBoardViewProps> = ({
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden select-none">
       {/* Top action bar */}
-      <div className="p-4 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+      <div className="p-4 border-b border-slate-800 bg-slate-900/60 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-3 min-w-0">
+          <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
             {board.name}
             <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
               Serbest Tuval
@@ -155,7 +178,7 @@ export const FreeformBoardView: React.FC<FreeformBoardViewProps> = ({
               </button>
             </div>
           ) : (
-            <span className="text-xs text-slate-400">
+            <span className="hidden sm:inline text-xs text-slate-400">
               Kartları tuval üzerinde dilediğiniz yere sürükleyin veya aralarında bağlantı kurun.
             </span>
           )}
@@ -181,8 +204,6 @@ export const FreeformBoardView: React.FC<FreeformBoardViewProps> = ({
       {/* Freeform Canvas Area */}
       <div
         ref={containerRef}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
         className="flex-1 relative overflow-auto bg-[#090d16] bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] min-h-[800px] min-w-[1200px]"
       >
         {/* SVG Edges Layer */}
@@ -268,7 +289,15 @@ export const FreeformBoardView: React.FC<FreeformBoardViewProps> = ({
                 width: `${CARD_WIDTH}px`,
               }}
               onMouseDown={(e) => handleMouseDown(e, item)}
-              onClick={() => handleCardClick(item.id)}
+              onClick={() => {
+                if (hasMovedRef.current) return;
+                if (connectingSourceId) {
+                  handleCardClick(item.id);
+                } else {
+                  setForceExerciseModal(false);
+                  setSelectedCardId(item.id);
+                }
+              }}
               className={`rounded-2xl p-4 border transition-all z-10 shadow-xl select-none cursor-move ${
                 isConnectingSource
                   ? 'bg-amber-950/40 border-amber-500 ring-2 ring-amber-500/50'
@@ -344,6 +373,39 @@ export const FreeformBoardView: React.FC<FreeformBoardViewProps> = ({
           );
         })}
       </div>
+
+      {/* Dynamic Detail Modal */}
+      {selectedCardForDetail && (() => {
+        const cardTitle = (selectedCardForDetail.itemDetails?.title as string) || '';
+        const isCardExercise = forceExerciseModal || isFitness || isRecognizedExercise(cardTitle);
+
+        if (isCardExercise) {
+          return (
+            <ExerciseDetailModal
+              item={selectedCardForDetail}
+              workspaceId={board.workspaceId}
+              onClose={() => {
+                setSelectedCardId(null);
+                setForceExerciseModal(false);
+              }}
+              onRefreshBoard={onRefresh}
+            />
+          );
+        }
+
+        return (
+          <ItemDetailModal
+            item={selectedCardForDetail}
+            workspaceId={board.workspaceId}
+            onClose={() => {
+              setSelectedCardId(null);
+              setForceExerciseModal(false);
+            }}
+            onRefreshBoard={onRefresh}
+            onOpenAsExercise={() => setForceExerciseModal(true)}
+          />
+        );
+      })()}
     </div>
   );
 };

@@ -211,7 +211,7 @@ export const BoardListPanel: React.FC = () => {
   return (
     <div className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6 w-full max-w-[1700px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between pb-6 border-b border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-slate-800">
         <div>
           <h2 className="text-2xl font-bold text-white flex items-center gap-2.5">
             <Kanban className="w-7 h-7 text-blue-500" /> Çalışma Panoları
@@ -258,7 +258,7 @@ export const BoardListPanel: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
           {boards.map((b) => {
             const area = areas.find((a) => a.id === b.areaId);
             const isColumns = b.boardType === 'COLUMNS';

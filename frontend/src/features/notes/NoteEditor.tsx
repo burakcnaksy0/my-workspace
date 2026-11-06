@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useEditor, EditorContent, ReactNodeViewRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
+import Image from '@tiptap/extension-image';
+import { ImageNodeView } from './ImageNodeView';
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
+import { TextSelection } from 'prosemirror-state';
 import {
   Bold,
   Italic,
@@ -17,6 +20,7 @@ import {
   SquareCode,
   Link2,
   Table2,
+  Image as ImageIcon,
   Undo,
   Redo,
   Save,
@@ -43,6 +47,123 @@ interface NoteEditorProps {
   onDeleteNote: (noteId: string) => Promise<void>;
   onNoteSaved?: (savedNote: Note) => void;
 }
+
+/**
+ * Optimizes pasted/dropped images: reads as DataURL, resizes giant screenshots to max 1600px width/height
+ * to ensure snappy saves and keep base64 payload light.
+ */
+const processImageFile = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      return reject(new Error('Dosya bir görsel değil'));
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => {
+      const result = reader.result as string;
+      // If file is already reasonably small (< 600KB), keep directly
+      if (file.size < 600 * 1024) {
+        return resolve(result);
+      }
+
+      const img = new window.Image();
+      img.onerror = () => resolve(result);
+      img.onload = () => {
+        const maxWidth = 1600;
+        const maxHeight = 1600;
+        let { width, height } = img;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width / maxWidth > height / maxHeight) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          return resolve(result);
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const isPng = file.type === 'image/png';
+        const compressed = isPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.85);
+        resolve(compressed);
+      };
+      img.src = result;
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+/**
+ * Custom Image extension that adds width & alignment attributes,
+ * makes images draggable in the document, and uses ImageNodeView for interactive resizing and positioning.
+ */
+const CustomImage = Image.extend({
+  draggable: true,
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: '100%',
+        parseHTML: (element) => element.style.width || element.getAttribute('width') || '100%',
+        renderHTML: (attributes) => {
+          if (!attributes.width) return {};
+          return {
+            style: `width: ${attributes.width}`,
+          };
+        },
+      },
+      alignment: {
+        default: 'center',
+        parseHTML: (element) => element.getAttribute('data-alignment') || 'center',
+        renderHTML: (attributes) => {
+          return {
+            'data-alignment': attributes.alignment || 'center',
+          };
+        },
+      },
+      posX: {
+        default: 0,
+        parseHTML: (element) => parseFloat(element.getAttribute('data-pos-x') || '0'),
+        renderHTML: (attributes) => {
+          return {
+            'data-pos-x': attributes.posX || 0,
+          };
+        },
+      },
+      posY: {
+        default: 0,
+        parseHTML: (element) => parseFloat(element.getAttribute('data-pos-y') || '0'),
+        renderHTML: (attributes) => {
+          return {
+            'data-pos-y': attributes.posY || 0,
+          };
+        },
+      },
+      isPinned: {
+        default: false,
+        parseHTML: (element) => element.getAttribute('data-is-pinned') === 'true',
+        renderHTML: (attributes) => {
+          return {
+            'data-is-pinned': attributes.isPinned ? 'true' : 'false',
+          };
+        },
+      },
+    };
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(ImageNodeView);
+  },
+});
 
 interface NoteTemplate {
   id: string;
@@ -218,12 +339,20 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           levels: [1, 2, 3],
         },
         link: false,
+        dropcursor: {
+          color: '#3b82f6',
+          width: 3,
+        },
       }),
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
           class: 'text-blue-400 underline hover:text-blue-300',
         },
+      }),
+      CustomImage.configure({
+        inline: false,
+        allowBase64: true,
       }),
       Table.configure({
         resizable: true,
@@ -237,6 +366,91 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       attributes: {
         class:
           'prose prose-invert prose-slate max-w-none min-h-[400px] focus:outline-none p-4 text-slate-200 text-sm leading-relaxed',
+      },
+      handlePaste: (view, event) => {
+        const items = Array.from(event.clipboardData?.items || []);
+        const imageItem = items.find((item) => item.type.startsWith('image/'));
+        if (imageItem) {
+          const file = imageItem.getAsFile();
+          if (file) {
+            event.preventDefault();
+            processImageFile(file)
+              .then((src) => {
+                const { schema } = view.state;
+                if (schema.nodes.image) {
+                  const imageNode = schema.nodes.image.create({
+                    src,
+                    width: '100%',
+                    alignment: 'center',
+                  });
+                  const pNode = schema.nodes.paragraph.create();
+                  let tr = view.state.tr.replaceSelectionWith(imageNode);
+                  const insertPos = tr.selection.to;
+                  tr = tr.insert(insertPos, pNode);
+                  const targetPos = Math.min(insertPos + 1, tr.doc.content.size);
+                  try {
+                    const resolvedPos = tr.doc.resolve(targetPos);
+                    tr = tr.setSelection(TextSelection.near(resolvedPos));
+                  } catch {
+                    // ignore
+                  }
+                  view.dispatch(tr);
+                  view.focus();
+                }
+              })
+              .catch((err) => console.error('Pasted image failed:', err));
+            return true;
+          }
+        }
+        return false;
+      },
+      handleDrop: (view, event, _slice, moved) => {
+        if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+          const file = event.dataTransfer.files[0];
+          if (file && file.type.startsWith('image/')) {
+            event.preventDefault();
+            const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY });
+            processImageFile(file)
+              .then((src) => {
+                const { schema } = view.state;
+                if (schema.nodes.image) {
+                  const imageNode = schema.nodes.image.create({
+                    src,
+                    width: '100%',
+                    alignment: 'center',
+                  });
+                  const pNode = schema.nodes.paragraph.create();
+                  let tr = view.state.tr;
+                  if (coordinates) {
+                    tr = tr.insert(coordinates.pos, [imageNode, pNode]);
+                    const targetPos = Math.min(coordinates.pos + imageNode.nodeSize + 1, tr.doc.content.size);
+                    try {
+                      const resolvedPos = tr.doc.resolve(targetPos);
+                      tr = tr.setSelection(TextSelection.near(resolvedPos));
+                    } catch {
+                      // ignore
+                    }
+                  } else {
+                    tr = tr.replaceSelectionWith(imageNode);
+                    const insertPos = tr.selection.to;
+                    tr = tr.insert(insertPos, pNode);
+                    const targetPos = Math.min(insertPos + 1, tr.doc.content.size);
+                    try {
+                      const resolvedPos = tr.doc.resolve(targetPos);
+                      tr = tr.setSelection(TextSelection.near(resolvedPos));
+                    } catch {
+                      // ignore
+                    }
+                  }
+                  view.dispatch(tr);
+                  view.focus();
+                }
+              })
+              .catch((err) => console.error('Dropped image failed:', err));
+            return true;
+          }
+        }
+        return false;
       },
     },
   });
@@ -258,6 +472,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     };
   }, [title, areaId, tags]);
 
+  const versionRef = useRef(version);
+  versionRef.current = version;
+
   const handleSave = useCallback(
     async (_data: typeof currentFormData) => {
       if (!editor) return;
@@ -271,38 +488,38 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         contentText,
         contentFormat: 'tiptap-json-v1',
         tags,
-        version,
+        version: versionRef.current,
       };
 
       const updated = await onUpdateNote(req);
+      versionRef.current = updated.version;
       setVersion(updated.version);
       if (onNoteSaved) {
         onNoteSaved(updated);
       }
     },
-    [editor, title, areaId, tags, version, onUpdateNote, onNoteSaved]
+    [editor, title, areaId, tags, onUpdateNote, onNoteSaved]
   );
 
-  const { saveStatus, errorMessage, lastSavedAt, saveNow } = useAutosave({
+  const { saveStatus, errorMessage, lastSavedAt, saveNow, triggerAutosave } = useAutosave({
     data: currentFormData,
     onSave: handleSave,
-    delay: 2000,
+    delay: 1200,
   });
 
-  // Listen to editor content change to trigger autosave
+  // Listen to editor content change to trigger debounced autosave (NOT instant saveNow!)
   useEffect(() => {
     if (!editor) return;
 
     const handleUpdate = () => {
-      // Trigger save by forcing state change or debounced call
-      saveNow();
+      triggerAutosave();
     };
 
     editor.on('update', handleUpdate);
     return () => {
       editor.off('update', handleUpdate);
     };
-  }, [editor, saveNow]);
+  }, [editor, triggerAutosave]);
 
   const handleAddTag = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ',') {
@@ -333,23 +550,39 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
   };
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editor) return;
+    try {
+      const src = await processImageFile(file);
+      editor.chain().focus().setImage({ src, width: '100%', alignment: 'center' } as any).run();
+      editor.chain().focus().insertContent('<p></p>').run();
+    } catch (err) {
+      console.error('Görsel yüklenemedi:', err);
+    } finally {
+      e.target.value = '';
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-slate-900/40 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl backdrop-blur-sm">
       {/* Top Meta Bar */}
       <div className="p-4 border-b border-slate-800/80 bg-slate-900/60 flex flex-wrap items-center justify-between gap-3">
         {/* Title Input */}
-        <div className="flex-1 min-w-[260px]">
+        <div className="w-full sm:w-auto sm:flex-1 min-w-0">
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Not başlığı..."
-            className="w-full bg-transparent text-xl font-bold text-white placeholder-slate-500 focus:outline-none focus:ring-0 border-b border-transparent focus:border-blue-500/50 pb-1 transition"
+            className="w-full bg-transparent text-lg sm:text-xl font-bold text-white placeholder-slate-500 focus:outline-none focus:ring-0 border-b border-transparent focus:border-blue-500/50 pb-1 transition"
           />
         </div>
 
         {/* Action Controls & Save Status */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Area Selector */}
           <div className="flex items-center gap-1.5 bg-slate-800/60 border border-slate-700/60 rounded-lg px-2.5 py-1 text-xs text-slate-300">
             <Layers className="w-3.5 h-3.5 text-blue-400" />
@@ -562,13 +795,19 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
           <ToolbarDivider />
 
-          {/* Links & Tables */}
+          {/* Links, Images & Tables */}
           <ToolbarButton
             onClick={setLink}
             isActive={editor.isActive('link')}
             title="Bağlantı Ekle / Düzenle"
           >
             <Link2 className="w-4 h-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => fileInputRef.current?.click()}
+            title="Görsel Ekle / Yükle (veya doğrudan panodan Ctrl+V yapıştırın)"
+          >
+            <ImageIcon className="w-4 h-4" />
           </ToolbarButton>
           <ToolbarButton
             onClick={() =>
@@ -579,6 +818,13 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           >
           <Table2 className="w-4 h-4" />
         </ToolbarButton>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageFileChange}
+        />
 
           {editor.isActive('table') && (
             <div className="flex items-center gap-1 text-[11px] bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700">

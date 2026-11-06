@@ -60,8 +60,12 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
-                    "/actuator/**",
-                    "/api/actuator/**",
+                    // Container healthcheck yalnızca /actuator/health kullanır;
+                    // diğer actuator uçları (info vb.) kimlik doğrulaması ister.
+                    "/actuator/health",
+                    "/actuator/health/**",
+                    "/api/actuator/health",
+                    "/api/actuator/health/**",
                     "/api/health",
                     "/api/v3/api-docs/**",
                     "/v3/api-docs/**",

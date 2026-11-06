@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -82,7 +83,7 @@ public class BoardService {
         List<BoardEdge> edges = edgeRepository.findByBoardId(boardId);
 
         List<BoardColumnDto> columnDtos = columns.stream().map(BoardColumnDto::fromEntity).toList();
-        List<BoardItemDto> itemDtos = items.stream().map(this::mapItemToDto).toList();
+        List<BoardItemDto> itemDtos = mapItemsToDtos(items);
         List<BoardEdgeDto> edgeDtos = edges.stream().map(BoardEdgeDto::fromEntity).toList();
 
         return BoardDetailsDto.fromEntity(board, columnDtos, itemDtos, edgeDtos);
@@ -420,6 +421,70 @@ public class BoardService {
         });
     }
 
+    /**
+     * Panodaki tüm öğelerin detaylarını tür başına TEK sorgu ile toplu yükler (N+1 önleme).
+     */
+    private List<BoardItemDto> mapItemsToDtos(List<BoardItem> items) {
+        if (items.isEmpty()) {
+            return List.of();
+        }
+
+        Set<UUID> taskIds = new HashSet<>();
+        Set<UUID> noteIds = new HashSet<>();
+        Set<UUID> drawingIds = new HashSet<>();
+        for (BoardItem item : items) {
+            switch (item.getItemType()) {
+                case "TASK" -> taskIds.add(item.getItemId());
+                case "NOTE" -> noteIds.add(item.getItemId());
+                case "DRAWING" -> drawingIds.add(item.getItemId());
+            }
+        }
+
+        Map<UUID, Task> tasksById = taskIds.isEmpty() ? Map.of()
+                : taskRepository.findAllById(taskIds).stream()
+                        .collect(Collectors.toMap(Task::getId, t -> t));
+        Map<UUID, Note> notesById = noteIds.isEmpty() ? Map.of()
+                : noteRepository.findAllById(noteIds).stream()
+                        .collect(Collectors.toMap(Note::getId, n -> n));
+        Map<UUID, DrawingDocument> drawingsById = drawingIds.isEmpty() ? Map.of()
+                : drawingRepository.findAllById(drawingIds).stream()
+                        .collect(Collectors.toMap(DrawingDocument::getId, d -> d));
+
+        List<BoardItemDto> result = new ArrayList<>(items.size());
+        for (BoardItem item : items) {
+            Map<String, Object> details = new HashMap<>();
+            switch (item.getItemType()) {
+                case "TASK" -> {
+                    Task t = tasksById.get(item.getItemId());
+                    if (t != null) {
+                        details.put("title", t.getTitle());
+                        details.put("status", t.getStatus());
+                        details.put("priority", t.getPriority());
+                        details.put("dueAt", t.getDueAt());
+                        details.put("version", t.getVersion());
+                        details.put("description", t.getDescription());
+                    }
+                }
+                case "NOTE" -> {
+                    Note n = notesById.get(item.getItemId());
+                    if (n != null) {
+                        details.put("title", n.getTitle());
+                        details.put("snippet", n.getContentText() != null && n.getContentText().length() > 100
+                                ? n.getContentText().substring(0, 100) + "..." : n.getContentText());
+                    }
+                }
+                case "DRAWING" -> {
+                    DrawingDocument d = drawingsById.get(item.getItemId());
+                    if (d != null) {
+                        details.put("title", d.getTitle());
+                    }
+                }
+            }
+            result.add(BoardItemDto.fromEntity(item, details));
+        }
+        return result;
+    }
+
     private BoardItemDto mapItemToDto(BoardItem item) {
         Map<String, Object> details = new HashMap<>();
         try {
@@ -429,6 +494,8 @@ public class BoardService {
                     details.put("status", t.getStatus());
                     details.put("priority", t.getPriority());
                     details.put("dueAt", t.getDueAt());
+                    details.put("version", t.getVersion());
+                    details.put("description", t.getDescription());
                 });
                 case "NOTE" -> noteRepository.findById(item.getItemId()).ifPresent(n -> {
                     details.put("title", n.getTitle());

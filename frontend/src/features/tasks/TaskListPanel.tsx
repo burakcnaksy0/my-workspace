@@ -46,8 +46,8 @@ export const TaskListPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // View mode: 'LIST' or 'COLUMNS'
-  const [viewMode, setViewMode] = useState<'LIST' | 'COLUMNS'>('LIST');
+  // View mode: 'LIST' or 'COLUMNS' (default: 'COLUMNS')
+  const [viewMode, setViewMode] = useState<'LIST' | 'COLUMNS'>('COLUMNS');
 
   // Filters
   const [filterStatus, setFilterStatus] = useState<string>('');
@@ -101,7 +101,7 @@ export const TaskListPanel: React.FC = () => {
     loadTasks();
   }, [loadTasks]);
 
-  // Quick Task Create
+  // Quick Task Create with optimistic prepend
   const handleQuickAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeWorkspace || !quickTitle.trim()) return;
@@ -113,12 +113,13 @@ export const TaskListPanel: React.FC = () => {
         priority: quickPriority,
         areaId: quickAreaId || filterAreaId || undefined,
       };
-      await apiRequest<Task>(`/api/workspaces/${activeWorkspace.id}/tasks`, {
+      const created = await apiRequest<Task>(`/api/workspaces/${activeWorkspace.id}/tasks`, {
         method: 'POST',
         body: JSON.stringify(req),
       });
       setQuickTitle('');
-      loadTasks();
+      setTasks((prev) => [created, ...prev]);
+      setTotalElements((prev) => prev + 1);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Görev oluşturulamadı');
     } finally {
@@ -138,13 +139,14 @@ export const TaskListPanel: React.FC = () => {
         areaId: createForm.areaId || undefined,
         dueAt: createForm.dueAt ? new Date(createForm.dueAt).toISOString() : undefined,
       };
-      await apiRequest<Task>(`/api/workspaces/${activeWorkspace.id}/tasks`, {
+      const created = await apiRequest<Task>(`/api/workspaces/${activeWorkspace.id}/tasks`, {
         method: 'POST',
         body: JSON.stringify(req),
       });
       setCreateForm({ title: '', description: '', priority: 'MEDIUM', areaId: '', dueAt: '' });
       setIsCreateOpen(false);
-      loadTasks();
+      setTasks((prev) => [created, ...prev]);
+      setTotalElements((prev) => prev + 1);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Görev oluşturulamadı');
     } finally {
@@ -166,12 +168,12 @@ export const TaskListPanel: React.FC = () => {
         dueAt: editForm.dueAt ? new Date(editForm.dueAt).toISOString() : null,
         version: editingTask.version,
       };
-      await apiRequest<Task>(`/api/workspaces/${activeWorkspace.id}/tasks/${editingTask.id}`, {
+      const updated = await apiRequest<Task>(`/api/workspaces/${activeWorkspace.id}/tasks/${editingTask.id}`, {
         method: 'PUT',
         body: JSON.stringify(req),
       });
       setEditingTask(null);
-      loadTasks();
+      setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Görev güncellenemedi');
     } finally {
@@ -179,29 +181,40 @@ export const TaskListPanel: React.FC = () => {
     }
   };
 
+  // Instant Optimistic Status Change (Zero Delay feedback)
   const handleStatusChange = async (task: Task, newStatus: Task['status']) => {
     if (!activeWorkspace) return;
+    const prevTasks = [...tasks];
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, status: newStatus, version: t.version + 1 } : t))
+    );
     try {
       const req: TaskStatusUpdateRequest = { status: newStatus, version: task.version };
-      await apiRequest<Task>(`/api/workspaces/${activeWorkspace.id}/tasks/${task.id}/status`, {
+      const updated = await apiRequest<Task>(`/api/workspaces/${activeWorkspace.id}/tasks/${task.id}/status`, {
         method: 'PATCH',
         body: JSON.stringify(req),
       });
-      loadTasks();
+      setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
     } catch (err: unknown) {
+      setTasks(prevTasks);
       setError(err instanceof Error ? err.message : 'Durum güncellenemedi');
     }
   };
 
+  // Instant Optimistic Task Deletion
   const handleDeleteTask = async (task: Task) => {
     if (!activeWorkspace) return;
     if (!window.confirm(`"${task.title}" görevi silinecek. Emin misiniz?`)) return;
+    const prevTasks = [...tasks];
+    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    setTotalElements((prev) => Math.max(0, prev - 1));
     try {
       await apiRequest<void>(`/api/workspaces/${activeWorkspace.id}/tasks/${task.id}`, {
         method: 'DELETE',
       });
-      loadTasks();
     } catch (err: unknown) {
+      setTasks(prevTasks);
+      setTotalElements(prevTasks.length);
       setError(err instanceof Error ? err.message : 'Görev silinemedi');
     }
   };
@@ -673,7 +686,7 @@ interface TaskCardProps {
   onDelete: (task: Task) => void;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, onStatusChange, onEdit, onDelete }) => {
+const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, onStatusChange, onEdit, onDelete }) => {
   const priorityConf = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.MEDIUM;
   const statusConf = STATUS_CONFIG[task.status] || STATUS_CONFIG.TODO;
   const PriorityIcon = priorityConf.icon;
@@ -784,4 +797,6 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onStatusChange, onEdit, onDel
       </div>
     </div>
   );
-};
+});
+
+TaskCard.displayName = 'TaskCard';

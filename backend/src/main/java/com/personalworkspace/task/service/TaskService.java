@@ -21,7 +21,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -52,7 +58,9 @@ public class TaskService {
         accessService.checkWorkspaceAccess(workspaceId, userId);
         Page<Task> tasks = taskRepository.findByWorkspaceWithFilters(
                 workspaceId, areaId, status, priority, pageable);
-        return tasks.map(this::toDto);
+        // N+1 önleme: alan adları tek sorguda toplu yüklenir
+        Map<UUID, String> areaNames = loadAreaNames(tasks.getContent());
+        return tasks.map(t -> toDto(t, areaNames));
     }
 
     @Transactional(readOnly = true)
@@ -122,7 +130,8 @@ public class TaskService {
         applyCompletionLogic(task, oldStatus, newStatus);
 
         try {
-            task = taskRepository.save(task);
+            // save() flush etmez; optimistic-lock istisnası commit'an önce tetiklenmeli
+            task = taskRepository.saveAndFlush(task);
         } catch (ObjectOptimisticLockingFailureException e) {
             throw new ConflictException("Görev başka bir yerden eşzamanlı olarak güncellenmiş. Lütfen sayfayı yenileyip tekrar deneyin.");
         }
@@ -150,7 +159,8 @@ public class TaskService {
         applyCompletionLogic(task, oldStatus, newStatus);
 
         try {
-            task = taskRepository.save(task);
+            // save() flush etmez; optimistic-lock istisnası commit'an önce tetiklenmeli
+            task = taskRepository.saveAndFlush(task);
         } catch (ObjectOptimisticLockingFailureException e) {
             throw new ConflictException("Görev başka bir yerden eşzamanlı olarak güncellenmiş.");
         }
@@ -190,7 +200,30 @@ public class TaskService {
                     .map(Area::getName)
                     .orElse(null);
         }
+        return buildDto(t, areaName);
+    }
 
+    /**
+     * Liste yönelik sürüm: alan adları önceden toplu yüklenmiş haritadan okunur (N+1 yok).
+     */
+    private TaskDto toDto(Task t, Map<UUID, String> areaNames) {
+        String areaName = t.getAreaId() == null ? null : areaNames.get(t.getAreaId());
+        return buildDto(t, areaName);
+    }
+
+    private Map<UUID, String> loadAreaNames(Collection<Task> tasks) {
+        Set<UUID> areaIds = tasks.stream()
+                .map(Task::getAreaId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(HashSet::new));
+        if (areaIds.isEmpty()) {
+            return Map.of();
+        }
+        return areaRepository.findAllById(areaIds).stream()
+                .collect(Collectors.toMap(Area::getId, Area::getName));
+    }
+
+    private TaskDto buildDto(Task t, String areaName) {
         return new TaskDto(
                 t.getId(),
                 t.getWorkspaceId(),

@@ -30,8 +30,8 @@ cp .env.example .env
 | Değişken | Açıklama | Örnek |
 |---|---|---|
 | `POSTGRES_PASSWORD` | Veritabanı parolası | Güçlü rastgele parola |
-| `BOOTSTRAP_USERNAME` | İlk admin kullanıcı adı | `admin` |
-| `BOOTSTRAP_PASSWORD` | İlk admin parolası (min 8 karakter) | Güçlü parola |
+| `BOOTSTRAP_ADMIN_USERNAME` | İlk admin kullanıcı adı | `admin` |
+| `BOOTSTRAP_ADMIN_PASSWORD` | İlk admin parolası (min 8 karakter) | Güçlü parola |
 
 > [!CAUTION]
 > `.env` dosyasını **asla Git'e commitlemeyin**. `.gitignore` tarafından zaten dışlanmıştır. `.env.example` dosyası güvenli şablondur.
@@ -62,7 +62,7 @@ Konteynerler healthy durumuna geçince:
 |---|---|---|---|
 | **Frontend** | React, TypeScript, Vite | 18.3.1 / 5.x / 6.x | Same-Origin `/api` rotalaması, glassmorphism arayüz |
 | **CSS** | Tailwind CSS, shadcn/ui | 3.4 | Koyu tema, cam efektleri |
-| **Editörler** | Tiptap, Excalidraw, React Flow | güncel | Zengin metin, çizim, serbest pano |
+| **Editörler** | Tiptap, Excalidraw | güncel | Zengin metin, çizim |
 | **Backend** | Java 21 LTS, Spring Boot | 3.4.1 | Modüler monolit, Spring Security, Spring Session JDBC |
 | **Veritabanı** | PostgreSQL | 16-alpine | UTC, pgcrypto UUID, Flyway migration |
 | **DevOps** | Docker Compose, Nginx | v2 / 1.27 | Multi-stage build, healthcheck, kalıcı volume |
@@ -86,7 +86,7 @@ Konteynerler healthy durumuna geçince:
 | **Görevler** | CRUD, öncelik (LOW/MEDIUM/HIGH), son tarih, durum (TODO/IN_PROGRESS/DONE), alan filtresi |
 | **Notlar** | Tiptap zengin metin editörü, otomatik/manuel kayıt, içerik arama, etiketler |
 | **Çizimler** | Excalidraw entegrasyonu, çoklu bağımsız belge, PNG/SVG/JSON dışa aktarma |
-| **Çalışma Panoları** | Sütunlu Kanban (dnd-kit) + Serbest tuval (React Flow), `mapped_status` senkronizasyonu |
+| **Çalışma Panoları** | Sütunlu Kanban + Serbest tuval (yerel sürükle-bırak implementasyonu), `mapped_status` senkronizasyonu |
 | **Alanlar** | İş & Kariyer, Yazılım Öğrenimi, Spor, Kişisel — düzenlenebilir |
 
 ---
@@ -199,11 +199,13 @@ npm run lint
 | `POSTGRES_DB` | Evet | Veritabanı adı |
 | `POSTGRES_USER` | Evet | Veritabanı kullanıcısı |
 | `POSTGRES_PASSWORD` | Evet | Veritabanı parolası |
-| `BOOTSTRAP_USERNAME` | Evet | İlk yönetici kullanıcı adı |
-| `BOOTSTRAP_PASSWORD` | Evet | İlk yönetici parolası (≥8 karakter) |
-| `SESSION_SECRET` | Evet | Spring Session şifreleme anahtarı (64+ karakter) |
+| `BOOTSTRAP_ADMIN_USERNAME` | Evet | İlk yönetici kullanıcı adı |
+| `BOOTSTRAP_ADMIN_PASSWORD` | Evet | İlk yönetici parolası (≥8 karakter) |
+| `BOOTSTRAP_DEFAULT_WORKSPACE` | Hayır | İlk çalışma alanı adı (varsayılan: `Kişisel Çalışma Alanım`) |
+| `SESSION_COOKIE_SECURE` | Hayır | Oturum çerezi `Secure` bayrağı (varsayılan: `false`, yalnızca localhost HTTP) |
+| `SESSION_MAX_INACTIVE_INTERVAL_SECONDS` | Hayır | Oturum boşta kalma süresi (varsayılan: 86400) |
 | `SPRING_PROFILES_ACTIVE` | Hayır | Aktif Spring profili (varsayılan: `prod`) |
-| `MAX_DRAWING_SIZE_MB` | Hayır | Çizim boyut sınırı (varsayılan: 10 MB) |
+| `FRONTEND_PORT` | Hayır | Host üzerindeki erişim portu (varsayılan: 3000) |
 
 ---
 
@@ -257,5 +259,5 @@ workspace/
 
 - Çöp kutusu / geri alma (soft delete) V2'ye bırakıldı; silmeler kalıcıdır (UI'da onay istenir).
 - Otomatik zamanlanmış yedekleme MVP dışında; manuel yedekleme betiği kullanılır.
-- `ContentLink` (içerikler arası ilişkilendirme) yalnızca veri modelinde var; UI V2'de.
+- İçerikler arası çapraz referanslama (ContentLink) yalnızca plandadır; ne şemada ne de kodda bulunur.
 - Playwright E2E testleri eklenmedi; birim ve entegrasyon testleri mevcut.

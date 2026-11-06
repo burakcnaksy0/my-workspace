@@ -28,12 +28,15 @@ public class DrawingService {
 
     private final DrawingRepository drawingRepository;
     private final WorkspaceAccessService accessService;
+    private final com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository;
 
     public DrawingService(
             DrawingRepository drawingRepository,
-            WorkspaceAccessService accessService) {
+            WorkspaceAccessService accessService,
+            com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository) {
         this.drawingRepository = drawingRepository;
         this.accessService = accessService;
+        this.boardItemRepository = boardItemRepository;
     }
 
     public DrawingDto createDrawing(UUID workspaceId, UUID userId, CreateDrawingRequest req) {
@@ -112,8 +115,9 @@ public class DrawingService {
         DrawingDocument doc = drawingRepository.findByIdAndWorkspaceId(drawingId, workspaceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Çizim belgesi bulunamadı: " + drawingId));
 
+        boardItemRepository.deleteByItemTypeAndItemId("DRAWING", drawingId);
         drawingRepository.delete(doc);
-        log.info("Çizim silindi: id={}", drawingId);
+        log.info("Çizim silindi (panolardaki kartlar temizlendi): id={}", drawingId);
     }
 
     private void validateDocumentSize(String data) {

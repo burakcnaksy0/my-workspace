@@ -29,7 +29,7 @@ import type { Drawing, UpdateDrawingRequest } from '../../types/drawing';
 // Save status type (local to this component; no useAutosave dependency)
 type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
-const AUTOSAVE_DELAY = 1500; // ms debounce after last scene change
+const AUTOSAVE_DELAY = 1000; // ms debounce after last scene change
 
 interface DrawingEditorProps {
   drawing: Drawing;
@@ -164,6 +164,7 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
   // ── Debounced trigger ─────────────────────────────────────────────────────
   const scheduleSave = useCallback(() => {
     setSaveStatus('dirty');
+    isDirtyRef.current = true;
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = setTimeout(executeSave, AUTOSAVE_DELAY);
   }, [executeSave]);
@@ -207,10 +208,23 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [executeSave]);
 
-  // Cleanup debounce on unmount
-  useEffect(() => () => {
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-  }, []);
+  // Flush pending changes on unmount or beforeunload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (isDirtyRef.current) {
+        executeSave();
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (isDirtyRef.current) {
+        executeSave();
+      }
+    };
+  }, [executeSave]);
 
   // Export to .excalidraw JSON file
   const handleExportJson = () => {

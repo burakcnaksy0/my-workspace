@@ -10,6 +10,7 @@ import {
   Minimize2,
   PanelLeftClose,
   PanelLeftOpen,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { apiRequest } from '../../lib/api';
@@ -27,6 +28,8 @@ export const DrawingListPanel: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   // sidebarCollapsed = sol çizim listesi mini moda alınır (fullscreen olmadan)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Dar ekranlarda liste ve editörü aynı anda göstermek yerine tek panel gösterilir.
+  const [isListVisible, setIsListVisible] = useState(true);
 
   const workspaceId = activeWorkspace?.id;
 
@@ -38,7 +41,7 @@ export const DrawingListPanel: React.FC = () => {
       setDrawings(data);
 
       if (data.length > 0 && !activeDrawing) {
-        loadDrawingDetails(data[0].id);
+        loadDrawingDetails(data[0].id, false);
       }
     } catch (err) {
       console.error('Çizimler yüklenirken hata:', err);
@@ -63,7 +66,7 @@ export const DrawingListPanel: React.FC = () => {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isFullscreen]);
 
-  const loadDrawingDetails = async (drawingId: string) => {
+  const loadDrawingDetails = async (drawingId: string, revealEditor = true) => {
     if (!workspaceId) return;
     setIsEditorLoading(true);
     try {
@@ -71,6 +74,7 @@ export const DrawingListPanel: React.FC = () => {
         `/api/workspaces/${workspaceId}/drawings/${drawingId}`
       );
       setActiveDrawing(fullDrawing);
+      if (revealEditor) setIsListVisible(false);
     } catch (err) {
       console.error('Çizim detayları yüklenemedi:', err);
     } finally {
@@ -95,6 +99,7 @@ export const DrawingListPanel: React.FC = () => {
 
       await fetchDrawings();
       setActiveDrawing(created);
+      setIsListVisible(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Çizim oluşturulamadı');
     } finally {
@@ -134,6 +139,7 @@ export const DrawingListPanel: React.FC = () => {
       });
       setActiveDrawing(null);
       setIsFullscreen(false);
+      setIsListVisible(true);
       await fetchDrawings();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Çizim silinemedi');
@@ -183,12 +189,14 @@ export const DrawingListPanel: React.FC = () => {
 
   // ── NORMAL GÖRÜNÜM ─────────────────────────────────────────────────────────
   return (
-    <div className="flex-1 flex min-h-0 w-full h-full gap-5 p-4 sm:p-6 overflow-hidden bg-transparent">
+    <div className="flex-1 flex min-h-0 w-full h-full gap-4 sm:gap-5 p-3 sm:p-6 overflow-hidden bg-transparent">
 
       {/* Sol Sidebar: Çizim Listesi — daraltılabilir */}
       <div
-        className={`flex flex-col shrink-0 bg-slate-900/40 rounded-2xl border border-slate-800 overflow-hidden shadow-xl glass-panel transition-all duration-300 ${
-          sidebarCollapsed ? 'w-12' : 'w-72'
+        className={`${
+          isListVisible ? 'flex' : 'hidden xl:flex'
+        } flex-col shrink-0 bg-slate-900/40 rounded-2xl border border-slate-800 overflow-hidden shadow-xl glass-panel transition-all duration-300 ${
+          sidebarCollapsed ? 'w-12' : 'w-full xl:w-72'
         }`}
       >
         {/* Header */}
@@ -314,7 +322,18 @@ export const DrawingListPanel: React.FC = () => {
       </div>
 
       {/* Sağ: Editor alanı */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <div
+        className={`${
+          isListVisible ? 'hidden xl:flex' : 'flex'
+        } flex-1 flex-col h-full min-w-0 overflow-hidden`}
+      >
+        <button
+          onClick={() => setIsListVisible(true)}
+          className="xl:hidden mb-2 self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium transition shrink-0"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Çizimlere Dön
+        </button>
         {isEditorLoading ? (
           <div className="flex-1 flex flex-col items-center justify-center bg-slate-900/40 rounded-2xl border border-slate-800 text-slate-400 text-sm">
             <RefreshCw className="w-6 h-6 animate-spin text-purple-400 mb-2" />

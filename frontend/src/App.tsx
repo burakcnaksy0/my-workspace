@@ -13,6 +13,8 @@ import {
   Code,
   Folder,
   User as UserIcon,
+  Menu,
+  X,
 } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginForm } from './features/auth/LoginForm';
@@ -53,6 +55,17 @@ const DashboardContent: React.FC = () => {
   const { user, activeWorkspace, areas, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [isAreaModalOpen, setIsAreaModalOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const selectTab = (tab: TabId) => {
+    setActiveTab(tab);
+    setIsSidebarOpen(false);
+  };
+
+  const openAreaModal = () => {
+    setIsSidebarOpen(false);
+    setIsAreaModalOpen(true);
+  };
 
   interface NavItem {
     id: TabId;
@@ -151,20 +164,41 @@ const DashboardContent: React.FC = () => {
         />
       </div>
 
+      {/* Mobile sidebar backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar Navigation */}
-      <aside className="w-64 border-r border-slate-800/80 bg-slate-950/70 backdrop-blur-xl flex flex-col justify-between shrink-0 relative z-10">
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-64 border-r border-slate-800/80 bg-slate-950/95 lg:bg-slate-950/70 backdrop-blur-xl flex flex-col justify-between shrink-0 transition-transform duration-200 ease-out lg:static lg:translate-x-0 lg:z-10 ${
+          isSidebarOpen ? 'translate-x-0 shadow-2xl shadow-black/60' : '-translate-x-full'
+        }`}
+      >
         <div>
           {/* Logo & App Title */}
-          <div className="p-5 border-b border-slate-800/80 flex items-center space-x-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white font-bold text-xl">
-              PW
+          <div className="p-5 border-b border-slate-800/80 flex items-center justify-between gap-3">
+            <div className="flex items-center space-x-3 min-w-0">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white font-bold text-xl shrink-0">
+                PW
+              </div>
+              <div className="min-w-0">
+                <h1 className="font-bold text-base tracking-tight text-white truncate">
+                  Personal Workspace
+                </h1>
+              </div>
             </div>
-            <div>
-              <h1 className="font-bold text-base tracking-tight text-white flex items-center gap-1.5">
-                Personal Workspace
-              </h1>
-
-            </div>
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              title="Menüyü kapat"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
           {/* Navigation Links */}
           <nav className="p-3 space-y-1">
@@ -177,7 +211,7 @@ const DashboardContent: React.FC = () => {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => selectTab(item.id)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${isActive
                     ? 'bg-blue-600/15 text-blue-400 border border-blue-500/30 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
@@ -207,7 +241,7 @@ const DashboardContent: React.FC = () => {
             <div className="flex items-center justify-between px-3 py-1 mb-1">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Alanlar</span>
               <button
-                onClick={() => setIsAreaModalOpen(true)}
+                onClick={openAreaModal}
                 className="text-slate-400 hover:text-white text-xs p-1 rounded hover:bg-slate-800"
                 title="Yeni Alan Ekle"
               >
@@ -257,37 +291,48 @@ const DashboardContent: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-950/35 relative z-10">
+      <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-slate-950/35 relative z-10">
         {/* Top Header */}
-        <header className="h-16 border-b border-slate-800/80 px-6 lg:px-8 flex items-center justify-between bg-slate-950/70 backdrop-blur-xl shrink-0 z-20">
-          <div>
-            <h2 className="text-lg font-semibold text-white tracking-tight flex items-center gap-2">
-              <span>{activeWorkspace?.name || 'Kişisel Çalışma Alanım'}</span>
-              <span className="text-xs font-normal text-slate-400 font-mono">
-                / {TAB_LABELS[activeTab]}
-              </span>
-            </h2>
-            <p className="text-xs text-slate-400">
-              Personal Workspace — Local-first Kişisel Bilgi ve Çalışma Alanı
-            </p>
+        <header className="h-16 border-b border-slate-800/80 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3 bg-slate-950/70 backdrop-blur-xl shrink-0 z-20">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden p-2 -ml-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition shrink-0"
+              title="Menüyü aç"
+              aria-label="Menüyü aç"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-semibold text-white tracking-tight flex items-center gap-2 min-w-0">
+                <span className="truncate">{activeWorkspace?.name || 'Kişisel Çalışma Alanım'}</span>
+                <span className="hidden sm:inline text-xs font-normal text-slate-400 font-mono shrink-0">
+                  / {TAB_LABELS[activeTab]}
+                </span>
+              </h2>
+              <p className="hidden md:block text-xs text-slate-400 truncate">
+                Personal Workspace — Local-first Kişisel Bilgi ve Çalışma Alanı
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <a
               href="/api/swagger-ui.html"
               target="_blank"
               rel="noreferrer"
-              className="text-xs px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition flex items-center gap-1.5 border border-slate-700/60"
+              className="text-xs px-2 sm:px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition flex items-center gap-1.5 border border-slate-700/60"
+              title="OpenAPI (Swagger)"
             >
               <FileText className="w-3.5 h-3.5 text-cyan-400" />
-              OpenAPI (Swagger)
+              <span className="hidden sm:inline">OpenAPI (Swagger)</span>
             </a>
           </div>
         </header>
 
         {/* Content Body */}
         {['boards', 'notes', 'drawings'].includes(activeTab) ? (
-          <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0 min-w-0 w-full overflow-hidden">
             <React.Suspense
               fallback={
                 <div className="flex-1 flex flex-col items-center justify-center p-16 text-slate-400 text-sm">
@@ -300,7 +345,7 @@ const DashboardContent: React.FC = () => {
             </React.Suspense>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto w-full max-w-[1700px] mx-auto p-6 lg:p-8">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-[1700px] mx-auto p-4 sm:p-6 lg:p-8">
             <React.Suspense
               fallback={
                 <div className="flex flex-col items-center justify-center p-16 text-slate-400 text-sm">

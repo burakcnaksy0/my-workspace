@@ -12,7 +12,7 @@ interface UseAutosaveOptions<T> {
 export function useAutosave<T>({
   data,
   onSave,
-  delay = 1500,
+  delay = 1200,
   enabled = true,
 }: UseAutosaveOptions<T>) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -22,20 +22,29 @@ export function useAutosave<T>({
   const dataRef = useRef<T>(data);
   const onSaveRef = useRef(onSave);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSavingRef = useRef(false);
+  const isDirtyRef = useRef(false);
   const isFirstRender = useRef(true);
 
-  // Update refs on render
+  // Always keep latest refs
   dataRef.current = data;
   onSaveRef.current = onSave;
 
   const executeSave = useCallback(async () => {
     if (!enabled) return;
 
+    if (isSavingRef.current) {
+      isDirtyRef.current = true;
+      return;
+    }
+
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
 
+    isSavingRef.current = true;
+    isDirtyRef.current = false;
     setSaveStatus('saving');
     setErrorMessage(null);
 
@@ -47,18 +56,18 @@ export function useAutosave<T>({
       setSaveStatus('error');
       const msg = err instanceof Error ? err.message : 'Kaydetme sırasında bir hata oluştu.';
       setErrorMessage(msg);
+    } finally {
+      isSavingRef.current = false;
+      if (isDirtyRef.current) {
+        isDirtyRef.current = false;
+        timerRef.current = setTimeout(executeSave, 400);
+      }
     }
   }, [enabled]);
 
-  // Track data changes and trigger debounce
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-
+  // Debounced trigger function for imperative calls (e.g., Tiptap editor update)
+  const triggerDebouncedSave = useCallback(() => {
     if (!enabled) return;
-
     setSaveStatus('dirty');
     setErrorMessage(null);
 
@@ -69,13 +78,23 @@ export function useAutosave<T>({
     timerRef.current = setTimeout(() => {
       executeSave();
     }, delay);
+  }, [delay, enabled, executeSave]);
+
+  // Track data changes and trigger debounce
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    triggerDebouncedSave();
 
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
     };
-  }, [data, delay, enabled, executeSave]);
+  }, [data, triggerDebouncedSave]);
 
   // Global Ctrl+S / Cmd+S shortcut for manual save
   useEffect(() => {
@@ -95,5 +114,6 @@ export function useAutosave<T>({
     errorMessage,
     lastSavedAt,
     saveNow: executeSave,
+    triggerAutosave: triggerDebouncedSave,
   };
 }

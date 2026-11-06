@@ -41,19 +41,21 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
     (details.priority as string) || 'MEDIUM'
   );
   const [description, setDescription] = useState<string>(
-    (details.snippet as string) || ''
+    (details.description as string) || (details.snippet as string) || ''
   );
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleStatusChange = async (newStatus: 'TODO' | 'IN_PROGRESS' | 'DONE') => {
     if (!isTask) return;
     setIsUpdatingStatus(true);
+    setErrorMsg(null);
     try {
       const req: TaskStatusUpdateRequest = {
         status: newStatus,
-        version: 0,
+        version: (details.version as number) ?? 0,
       };
       await apiRequest<Task>(`/api/workspaces/${workspaceId}/tasks/${item.itemId}/status`, {
         method: 'PATCH',
@@ -63,6 +65,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
       onRefreshBoard();
     } catch (err) {
       console.error('Durum güncellenemedi:', err);
+      setErrorMsg(err instanceof Error ? err.message : 'Durum güncellenemedi.');
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -71,6 +74,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
   const handleSaveDetails = async () => {
     if (!isTask) return;
     setIsSaving(true);
+    setErrorMsg(null);
     try {
       await apiRequest<Task>(`/api/workspaces/${workspaceId}/tasks/${item.itemId}`, {
         method: 'PUT',
@@ -79,6 +83,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
           description,
           priority: currentPriority,
           status: currentStatus,
+          version: (details.version as number) ?? 0,
         }),
       });
       setSavedSuccess(true);
@@ -86,6 +91,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
       onRefreshBoard();
     } catch (err) {
       console.error('Görev güncellenemedi:', err);
+      setErrorMsg(err instanceof Error ? err.message : 'Görev güncellenemedi.');
     } finally {
       setIsSaving(false);
     }
@@ -218,7 +224,6 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                     <option value="LOW">Düşük</option>
                     <option value="MEDIUM">Orta</option>
                     <option value="HIGH">Yüksek</option>
-                    <option value="URGENT">Acil</option>
                   </select>
                 </div>
               )}
@@ -258,9 +263,9 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
 
         {/* Footer */}
         <div className="p-4 border-t border-slate-800/80 bg-slate-950/60 flex items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             {details.dueAt && (
-              <span className="text-[11px] text-slate-400 flex items-center gap-1">
+              <span className="text-[11px] text-slate-400 flex items-center gap-1 shrink-0">
                 <Calendar className="w-3 h-3 text-slate-500" />
                 Son Tarih: {new Date(details.dueAt as string).toLocaleDateString('tr-TR')}
               </span>
@@ -268,6 +273,11 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
             {savedSuccess && (
               <span className="text-xs text-emerald-400 font-medium animate-fade-in flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" /> Değişiklikler kaydedildi
+              </span>
+            )}
+            {errorMsg && (
+              <span className="text-xs text-red-400 font-medium animate-fade-in truncate" title={errorMsg}>
+                {errorMsg}
               </span>
             )}
           </div>

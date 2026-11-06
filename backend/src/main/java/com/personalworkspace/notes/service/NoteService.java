@@ -1,5 +1,6 @@
 package com.personalworkspace.notes.service;
 
+import com.personalworkspace.common.exception.BadRequestException;
 import com.personalworkspace.common.exception.ConflictException;
 import com.personalworkspace.common.exception.ResourceNotFoundException;
 import com.personalworkspace.notes.dto.CreateNoteRequest;
@@ -34,6 +35,13 @@ public class NoteService {
 
     private static final Logger log = LoggerFactory.getLogger(NoteService.class);
 
+    /**
+     * Not gövdesi (Tiptap JSON, base64 gömülü görseller dahil) için üst sınır.
+     * Çizim belgelerindeki 10MB sınırıyla tutarlıdır; nginx ve Tomcat gövde
+     * limitleri (20MB) bunun üzerindeki istekleri zaten reddeder.
+     */
+    private static final int MAX_NOTE_CONTENT_SIZE_CHARS = 12 * 1024 * 1024; // ~12MB
+
     private final NoteRepository noteRepository;
     private final TagRepository tagRepository;
     private final AreaRepository areaRepository;
@@ -55,6 +63,8 @@ public class NoteService {
 
     public NoteDto createNote(UUID workspaceId, UUID userId, CreateNoteRequest req) {
         accessService.checkWorkspaceAccess(workspaceId, userId);
+
+        validateContentSize(req.content());
 
         UUID areaId = validateArea(workspaceId, req.areaId());
 
@@ -93,6 +103,8 @@ public class NoteService {
                 "Lütfen güncel veriyi yükleyip tekrar deneyin."
             );
         }
+
+        validateContentSize(req.content());
 
         UUID areaId = validateArea(workspaceId, req.areaId());
 
@@ -160,6 +172,14 @@ public class NoteService {
                 .stream()
                 .map(TagDto::fromEntity)
                 .toList();
+    }
+
+    private void validateContentSize(String content) {
+        if (content != null && content.length() > MAX_NOTE_CONTENT_SIZE_CHARS) {
+            throw new BadRequestException(
+                "Not içeriği izin verilen sınırı (~12MB) aşıyor. Daha az görsel ile yeniden deneyin."
+            );
+        }
     }
 
     private Set<Tag> resolveTags(UUID workspaceId, Set<String> tagNames) {

@@ -200,7 +200,7 @@ docker compose ps
 
 ## 7. İlk Kullanıcı Oluşturma
 
-`.env` dosyasındaki `BOOTSTRAP_USERNAME` ve `BOOTSTRAP_PASSWORD` değişkenleri ile uygulama ilk açıldığında kullanıcı otomatik oluşturulur. Mekanizma idempotent'tir; `users` tablosu boş olmadıkça tekrar çalışmaz.
+`.env` dosyasındaki `BOOTSTRAP_ADMIN_USERNAME` ve `BOOTSTRAP_ADMIN_PASSWORD` değişkenleri ile uygulama ilk açıldığında kullanıcı otomatik oluşturulur. Mekanizma idempotent'tir; `users` tablosu boş olmadıkça tekrar çalışmaz.
 
 ---
 
@@ -211,10 +211,9 @@ docker compose ps
 | `POSTGRES_DB` | Evet | Veritabanı adı |
 | `POSTGRES_USER` | Evet | DB kullanıcısı |
 | `POSTGRES_PASSWORD` | Evet | DB parolası |
-| `BOOTSTRAP_USERNAME` | Evet | İlk admin kullanıcı adı |
-| `BOOTSTRAP_PASSWORD` | Evet | İlk admin parolası (≥8 karakter) |
-| `SESSION_SECRET` | Evet | Spring Session şifreleme anahtarı |
-| `MAX_DRAWING_SIZE_MB` | Hayır | Çizim boyut sınırı (varsayılan: 10 MB) |
+| `BOOTSTRAP_ADMIN_USERNAME` | Evet | İlk admin kullanıcı adı |
+| `BOOTSTRAP_ADMIN_PASSWORD` | Evet | İlk admin parolası (≥8 karakter) |
+| `SESSION_COOKIE_SECURE` | Hayır | Oturum çerezi `Secure` bayrağı (varsayılan: `false`) |
 
 ---
 

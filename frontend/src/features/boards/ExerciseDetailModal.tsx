@@ -44,15 +44,17 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
   const [userNotes, setUserNotes] = useState<string>(details.snippet || '');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Status Change handler
   const handleStatusChange = async (newStatus: 'TODO' | 'IN_PROGRESS' | 'DONE') => {
     if (item.itemType !== 'TASK') return;
     setIsUpdatingStatus(true);
+    setErrorMsg(null);
     try {
       const req: TaskStatusUpdateRequest = {
         status: newStatus,
-        version: 0,
+        version: (details.version as number) ?? 0,
       };
       await apiRequest<Task>(`/api/workspaces/${workspaceId}/tasks/${item.itemId}/status`, {
         method: 'PATCH',
@@ -62,6 +64,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
       onRefreshBoard();
     } catch (err) {
       console.error('Durum güncellenemedi:', err);
+      setErrorMsg(err instanceof Error ? err.message : 'Durum güncellenemedi.');
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -71,6 +74,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
   const handleSaveNotes = async () => {
     if (item.itemType !== 'TASK') return;
     setIsSavingNotes(true);
+    setErrorMsg(null);
     try {
       await apiRequest<Task>(`/api/workspaces/${workspaceId}/tasks/${item.itemId}`, {
         method: 'PUT',
@@ -79,6 +83,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
           description: userNotes,
           priority: details.priority || 'MEDIUM',
           status: currentStatus,
+          version: (details.version as number) ?? 0,
         }),
       });
       setSavedSuccess(true);
@@ -86,6 +91,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
       onRefreshBoard();
     } catch (err) {
       console.error('Notlar kaydedilemedi:', err);
+      setErrorMsg(err instanceof Error ? err.message : 'Notlar kaydedilemedi.');
     } finally {
       setIsSavingNotes(false);
     }
@@ -379,6 +385,13 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
                 <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   <span>Kayıtlar başarıyla güncellendi!</span>
+                </div>
+              )}
+
+              {errorMsg && (
+                <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-400" />
+                  <span>{errorMsg}</span>
                 </div>
               )}
 

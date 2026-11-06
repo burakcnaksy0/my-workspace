@@ -236,8 +236,8 @@ Gerçek test (2026-10-25): `backup.sh` → 40KB dump ve SHA-256 üretildi. `rest
 | Alan | Durum | Not |
 |---|---|---|
 | Soft delete / çöp kutusu | ❌ MVP dışı (V2) | Hard delete kullanılıyor; UI'da silme öncesi onay var |
-| Otomatik yedekleme zamanlaması | ❌ MVP dışı (V2) | Manuel betik mevcut |
-| ContentLink UI | ❌ MVP dışı (V2) | Veri modeli var, API yok |
+| Otomatik yedekleme zamanlaması | ⚠️ Kısmi | Saklama politikalı manuel betik + README'de cron/systemd timer rehberi |
+| ContentLink | ✅ Uygulandı (V2) | Flyway V2 şeması, API (`/api/workspaces/{ws}/content-links`) ve kart detay modalında bağlantı paneli |
 | Playwright E2E testleri | ❌ Eklenmedi | Birim + entegrasyon testleri mevcut |
 | Çoklu kullanıcı / davet | ❌ V3 planında | Veri modeli genişletilebilir tasarımda |
 | 409 Conflict UI diyaloğu | ⚠️ Kısmi | Backend 409 dönüyor; frontend toast ile bildiriyor ancak "Sunucudaki sürümü yükle / Benim sürümümle yaz" çift seçenekli diyalog tamamlanmadı |
@@ -248,10 +248,8 @@ Gerçek test (2026-10-25): `backup.sh` → 40KB dump ve SHA-256 üretildi. `rest
 
 1. **Soft Delete (V2):** `deleted_at` alanı ve çöp kutusu eklenebilir.
 2. **409 Conflict UI (V2):** "Sunucudaki sürümü yükle" / "Üzerine yaz" çift seçeneği diyaloğu.
-3. **Otomatik yedekleme (V2):** Cron veya host systemd servisi ile günlük otomatik yedek.
-4. **Playwright E2E (V2):** Login akışı, görev CRUD ve pano sürükleme duman testleri.
-5. **ContentLink API & UI (V2):** Görev-not-çizim arası çapraz referans arayüzü.
-6. **Çoklu kullanıcı (V3):** Davet sistemi, rol yönetimi, paylaşımlı çalışma alanları.
+3. **Playwright E2E (V2):** Login akışı, görev CRUD ve pano sürükleme duman testleri.
+4. **Çoklu kullanıcı (V3):** Davet sistemi, rol yönetimi, paylaşımlı çalışma alanları.
 
 ---
 

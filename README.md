@@ -88,6 +88,7 @@ Konteynerler healthy durumuna geçince:
 | **Çizimler** | Excalidraw entegrasyonu, çoklu bağımsız belge, PNG/SVG/JSON dışa aktarma |
 | **Çalışma Panoları** | Sütunlu Kanban + Serbest tuval (yerel sürükle-bırak implementasyonu), `mapped_status` senkronizasyonu |
 | **Alanlar** | İş & Kariyer, Yazılım Öğrenimi, Spor, Kişisel — düzenlenebilir |
+| **İçerik Bağlantıları** | Görev ↔ Not ↔ Çizim arası yönsüz çapraz referanslar; kart detay modalında listeleme/ekleme/silme, içerik silinince bağlantılar otomatik temizlenir |
 
 ---
 
@@ -302,6 +303,5 @@ workspace/
 ## 🐛 Bilinen Sınırlamalar
 
 - Çöp kutusu / geri alma (soft delete) V2'ye bırakıldı; silmeler kalıcıdır (UI'da onay istenir).
-- Otomatik zamanlanmış yedekleme MVP dışında; manuel yedekleme betiği kullanılır.
-- İçerikler arası çapraz referanslama (ContentLink) yalnızca plandadır; ne şemada ne de kodda bulunur.
+- Yedekler zamanlayıcı hizmeti olarak paketlenmez; README'deki cron/systemd timer örneğiyle günlük otomatik yedek kurabilirsiniz (saklama politikası betiğe dahildir).
 - Playwright E2E testleri eklenmedi; birim ve entegrasyon testleri mevcut.

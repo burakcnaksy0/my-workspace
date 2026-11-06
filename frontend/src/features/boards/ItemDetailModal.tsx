@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { apiRequest } from '../../lib/api';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+import { ContentLinksPanel } from '../links/ContentLinksPanel';
 import type { BoardItem } from './types';
 import type { Task, TaskStatusUpdateRequest } from '../../types/task';
 
@@ -254,6 +255,15 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                 {description || 'Bu not için henüz ek bir içerik yok.'}
               </div>
             )}
+          </div>
+
+          {/* Çapraz içerik bağlantıları (görev/not/çizim) */}
+          <div className="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/80">
+            <ContentLinksPanel
+              workspaceId={workspaceId}
+              refType={item.itemType}
+              refId={item.itemId}
+            />
           </div>
 
           {/* Optional: Switch to Exercise View button if user wants to see sports guide */}

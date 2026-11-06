@@ -47,18 +47,21 @@ public class NoteService {
     private final AreaRepository areaRepository;
     private final WorkspaceAccessService accessService;
     private final com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository;
+    private final com.personalworkspace.contentlink.service.ContentLinkService contentLinkService;
 
     public NoteService(
             NoteRepository noteRepository,
             TagRepository tagRepository,
             AreaRepository areaRepository,
             WorkspaceAccessService accessService,
-            com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository) {
+            com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository,
+            com.personalworkspace.contentlink.service.ContentLinkService contentLinkService) {
         this.noteRepository = noteRepository;
         this.tagRepository = tagRepository;
         this.areaRepository = areaRepository;
         this.accessService = accessService;
         this.boardItemRepository = boardItemRepository;
+        this.contentLinkService = contentLinkService;
     }
 
     public NoteDto createNote(UUID workspaceId, UUID userId, CreateNoteRequest req) {
@@ -161,6 +164,7 @@ public class NoteService {
                 .orElseThrow(() -> new ResourceNotFoundException("Not bulunamadı: " + noteId));
 
         boardItemRepository.deleteByItemTypeAndItemId("NOTE", noteId);
+        contentLinkService.removeLinksFor(com.personalworkspace.contentlink.entity.ContentRefType.NOTE, noteId);
         noteRepository.delete(note);
         log.info("Not silindi (panolardaki kartlar temizlendi): id={}", noteId);
     }

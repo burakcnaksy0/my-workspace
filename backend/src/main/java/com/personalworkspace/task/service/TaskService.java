@@ -39,16 +39,19 @@ public class TaskService {
     private final AreaRepository areaRepository;
     private final WorkspaceAccessService accessService;
     private final com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository;
+    private final com.personalworkspace.contentlink.service.ContentLinkService contentLinkService;
 
     public TaskService(
             TaskRepository taskRepository,
             AreaRepository areaRepository,
             WorkspaceAccessService accessService,
-            com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository) {
+            com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository,
+            com.personalworkspace.contentlink.service.ContentLinkService contentLinkService) {
         this.taskRepository = taskRepository;
         this.areaRepository = areaRepository;
         this.accessService = accessService;
         this.boardItemRepository = boardItemRepository;
+        this.contentLinkService = contentLinkService;
     }
 
     @Transactional(readOnly = true)
@@ -176,6 +179,7 @@ public class TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("Görev bulunamadı: " + taskId));
 
         boardItemRepository.deleteByItemTypeAndItemId("TASK", taskId);
+        contentLinkService.removeLinksFor(com.personalworkspace.contentlink.entity.ContentRefType.TASK, taskId);
         taskRepository.delete(task);
         log.info("Görev silindi (panolardaki kartlar temizlendi): id={}", taskId);
     }

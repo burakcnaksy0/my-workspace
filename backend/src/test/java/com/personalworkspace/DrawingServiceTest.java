@@ -38,6 +38,9 @@ class DrawingServiceTest {
     @Mock
     private com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository;
 
+    @Mock
+    private com.personalworkspace.contentlink.service.ContentLinkService contentLinkService;
+
     private DrawingService drawingService;
 
     private final UUID workspaceId = UUID.randomUUID();
@@ -45,7 +48,7 @@ class DrawingServiceTest {
 
     @BeforeEach
     void setUp() {
-        drawingService = new DrawingService(drawingRepository, accessService, boardItemRepository);
+        drawingService = new DrawingService(drawingRepository, accessService, boardItemRepository, contentLinkService);
     }
 
     @Test

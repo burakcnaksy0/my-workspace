@@ -29,14 +29,17 @@ public class DrawingService {
     private final DrawingRepository drawingRepository;
     private final WorkspaceAccessService accessService;
     private final com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository;
+    private final com.personalworkspace.contentlink.service.ContentLinkService contentLinkService;
 
     public DrawingService(
             DrawingRepository drawingRepository,
             WorkspaceAccessService accessService,
-            com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository) {
+            com.personalworkspace.boards.repository.BoardItemRepository boardItemRepository,
+            com.personalworkspace.contentlink.service.ContentLinkService contentLinkService) {
         this.drawingRepository = drawingRepository;
         this.accessService = accessService;
         this.boardItemRepository = boardItemRepository;
+        this.contentLinkService = contentLinkService;
     }
 
     public DrawingDto createDrawing(UUID workspaceId, UUID userId, CreateDrawingRequest req) {
@@ -116,6 +119,7 @@ public class DrawingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Çizim belgesi bulunamadı: " + drawingId));
 
         boardItemRepository.deleteByItemTypeAndItemId("DRAWING", drawingId);
+        contentLinkService.removeLinksFor(com.personalworkspace.contentlink.entity.ContentRefType.DRAWING, drawingId);
         drawingRepository.delete(doc);
         log.info("Çizim silindi (panolardaki kartlar temizlendi): id={}", drawingId);
     }

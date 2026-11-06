@@ -28,6 +28,18 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Büyük bağımsız paketleri ayrı chunk'lara böl: çizim/düzenleyici
+        // eklentileri yalnızca ilgili ekranlarda indirilir, önbellek isabeti artar
+        manualChunks: {
+          excalidraw: ['@excalidraw/excalidraw'],
+          tiptap: ['@tiptap/react', '@tiptap/starter-kit'],
+        },
+      },
+    },
+  },
   // @ts-expect-error vitest configuration
   test: {
     globals: true,

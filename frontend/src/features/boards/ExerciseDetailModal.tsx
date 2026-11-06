@@ -36,6 +36,8 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
   const details = item.itemDetails || {};
   const title = details.title || 'Egzersiz';
   const exercise = findExerciseInDatabase(title);
+  // 'dynamic-' önekli kayıtlar veritabanında bulunamayınca otomatik üretilir
+  const isDynamicContent = exercise.id.startsWith('dynamic-');
 
   const [activeTab, setActiveTab] = useState<'FORM' | 'TIPS' | 'TRACKER'>('FORM');
   const [currentStatus, setCurrentStatus] = useState<string>(details.status || 'TODO');
@@ -212,6 +214,19 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
 
         {/* Scrollable Content Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
+          {isDynamicContent && (
+            <div
+              role="note"
+              className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs leading-relaxed"
+            >
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <p>
+                Bu hareket veritabanımızda kayıtlı değil; aşağıdaki rehber hareket adı ve
+                kategori benzerliğine göre <strong>otomatik üretilmiştir</strong>. Genel form
+                ilkeleri hakkında yol göstericidir, kişisel eğitim önerisi yerine geçmez.
+              </p>
+            </div>
+          )}
           {activeTab === 'FORM' && (
             <>
               {/* Anatomical & Biomechanical Graphic */}

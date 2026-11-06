@@ -23,6 +23,7 @@ import { TaskListPanel } from './features/tasks/TaskListPanel';
 import { DashboardPanel } from './features/dashboard/DashboardPanel';
 import { ATCShader } from './components/ui/atc-shader';
 import { ErrorBoundary } from './components/ui/error-boundary';
+import { ToastProvider } from './components/ui/toast';
 const NoteListPanel = React.lazy(() =>
   import('./features/notes/NoteListPanel').then((m) => ({ default: m.NoteListPanel }))
 );
@@ -375,7 +376,9 @@ const DashboardContent: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <AuthProvider>
-      <AuthConsumer />
+      <ToastProvider>
+        <AuthConsumer />
+      </ToastProvider>
     </AuthProvider>
   );
 };

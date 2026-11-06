@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, CheckSquare, FileText, PenTool, Search, Plus, Check, Zap, Sparkles } from 'lucide-react';
 import { apiRequest } from '../../lib/api';
 import { isFitnessContext } from './exerciseDatabase';
+import { useToast } from '../../components/ui/toast';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 import type { BoardColumn, BoardItem } from './types';
 import type { Task } from '../../types/task';
 
@@ -35,6 +37,8 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
   areaId,
   onItemAdded,
 }) => {
+  const toast = useToast();
+  const panelRef = useDialogA11y<HTMLDivElement>(onClose, isOpen);
   const isFitness = isFitnessContext(boardName);
   const [modalMode, setModalMode] = useState<'SELECT' | 'CREATE'>('SELECT');
   const [activeTab, setActiveTab] = useState<'TASK' | 'NOTE' | 'DRAWING'>('TASK');
@@ -153,15 +157,25 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
       setTimeout(() => setQuickSuccessMsg(null), 3000);
     } catch (err) {
       console.error('Hızlı görev eklenirken hata:', err);
-      alert('Kart oluşturulamadı.');
+      toast.error('Kart oluşturulamadı.');
     } finally {
       setIsSubmittingQuick(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Panoya kart veya öğe ekle"
+        tabIndex={-1}
+        className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] outline-none"
+      >
         {/* Header */}
         <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
           <div>

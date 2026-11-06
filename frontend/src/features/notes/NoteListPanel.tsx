@@ -13,10 +13,12 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { apiRequest } from '../../lib/api';
 import { NoteEditor } from './NoteEditor';
+import { useToast } from '../../components/ui/toast';
 import type { Note, NoteSummary, CreateNoteRequest, UpdateNoteRequest, TagItem } from '../../types/note';
 import type { PagedResponse } from '../../types/task';
 
 export const NoteListPanel: React.FC = () => {
+  const toast = useToast();
   const { activeWorkspace, areas } = useAuth();
   const [notes, setNotes] = useState<NoteSummary[]>([]);
   const [activeNote, setActiveNote] = useState<Note | null>(null);
@@ -129,7 +131,7 @@ export const NoteListPanel: React.FC = () => {
       setActiveNote(created);
       setIsListVisible(false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Not oluşturulurken hata meydana geldi');
+      toast.error(err instanceof Error ? err.message : 'Not oluşturulurken hata meydana geldi');
     } finally {
       setIsCreating(false);
     }
@@ -181,7 +183,7 @@ export const NoteListPanel: React.FC = () => {
       setIsListVisible(true);
       await fetchNotes();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Not silinemedi');
+      toast.error(err instanceof Error ? err.message : 'Not silinemedi');
     }
   };
 

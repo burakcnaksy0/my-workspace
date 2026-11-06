@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { X, Plus, Folder, Briefcase, Code, Activity, User, Tag } from 'lucide-react';
 
 interface Props {
@@ -24,6 +25,7 @@ export const AreaManagementModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [color, setColor] = useState('#3b82f6');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const panelRef = useDialogA11y<HTMLDivElement>(onClose, isOpen);
 
   if (!isOpen) return null;
 
@@ -53,8 +55,18 @@ export const AreaManagementModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const availableIcons = ['briefcase', 'code', 'activity', 'user', 'folder', 'tag'];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-lg glass-panel p-6 rounded-2xl border border-slate-700 shadow-2xl relative">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Çalışma alanlarını yönet"
+        tabIndex={-1}
+        className="w-full max-w-lg glass-panel p-6 rounded-2xl border border-slate-700 shadow-2xl relative outline-none"
+      >
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
           <div>
             <h3 className="font-semibold text-white text-base">Çalışma Alanları (Areas)</h3>

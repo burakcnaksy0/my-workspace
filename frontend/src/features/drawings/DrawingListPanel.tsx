@@ -15,9 +15,11 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { apiRequest } from '../../lib/api';
 import { DrawingEditor } from './DrawingEditor';
+import { useToast } from '../../components/ui/toast';
 import type { Drawing, DrawingSummary, CreateDrawingRequest, UpdateDrawingRequest } from '../../types/drawing';
 
 export const DrawingListPanel: React.FC = () => {
+  const toast = useToast();
   const { activeWorkspace } = useAuth();
   const [drawings, setDrawings] = useState<DrawingSummary[]>([]);
   const [activeDrawing, setActiveDrawing] = useState<Drawing | null>(null);
@@ -101,7 +103,7 @@ export const DrawingListPanel: React.FC = () => {
       setActiveDrawing(created);
       setIsListVisible(false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Çizim oluşturulamadı');
+      toast.error(err instanceof Error ? err.message : 'Çizim oluşturulamadı');
     } finally {
       setIsCreating(false);
     }
@@ -142,7 +144,7 @@ export const DrawingListPanel: React.FC = () => {
       setIsListVisible(true);
       await fetchDrawings();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Çizim silinemedi');
+      toast.error(err instanceof Error ? err.message : 'Çizim silinemedi');
     }
   };
 

@@ -11,6 +11,7 @@ import {
   Info,
 } from 'lucide-react';
 import { boardsApi } from './api';
+import { useToast } from '../../components/ui/toast';
 import { ItemDetailModal } from './ItemDetailModal';
 import { ExerciseDetailModal } from './ExerciseDetailModal';
 import { isRecognizedExercise, isFitnessContext } from './exerciseDatabase';
@@ -27,6 +28,7 @@ export const FreeformBoardView: React.FC<FreeformBoardViewProps> = ({
   onRefresh,
   onOpenAddItemModal,
 }) => {
+  const toast = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
   const [items, setItems] = useState<BoardItem[]>(board.items || []);
   const [edges, setEdges] = useState<BoardEdge[]>(board.edges || []);
@@ -85,6 +87,7 @@ export const FreeformBoardView: React.FC<FreeformBoardViewProps> = ({
           ]);
         } catch (err) {
           console.error('Konum kaydedilirken hata:', err);
+          toast.error('Kart konumu kaydedilemedi.');
         }
       }
     };
@@ -129,6 +132,7 @@ export const FreeformBoardView: React.FC<FreeformBoardViewProps> = ({
       onRefresh();
     } catch (err) {
       console.error('Bağlantı oluşturulurken hata:', err);
+      toast.error('Bağlantı oluşturulamadı.');
       setConnectingSourceId(null);
     }
   };
@@ -141,6 +145,7 @@ export const FreeformBoardView: React.FC<FreeformBoardViewProps> = ({
       onRefresh();
     } catch (err) {
       console.error('Bağlantı silinirken hata:', err);
+      toast.error('Bağlantı silinemedi.');
     }
   };
 

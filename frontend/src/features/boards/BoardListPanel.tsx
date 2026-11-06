@@ -16,9 +16,12 @@ import { boardsApi } from './api';
 import { ColumnBoardView } from './ColumnBoardView';
 import { FreeformBoardView } from './FreeformBoardView';
 import { AddItemModal } from './AddItemModal';
+import { useToast } from '../../components/ui/toast';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 import type { BoardSummary, BoardDetails, CreateBoardRequest, BoardType } from './types';
 
 export const BoardListPanel: React.FC = () => {
+  const toast = useToast();
   const { activeWorkspace, areas } = useAuth();
   const [boards, setBoards] = useState<BoardSummary[]>([]);
   const [activeBoard, setActiveBoard] = useState<BoardDetails | null>(null);
@@ -26,6 +29,10 @@ export const BoardListPanel: React.FC = () => {
   const [isBoardLoading, setIsBoardLoading] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
+  const createModalRef = useDialogA11y<HTMLDivElement>(
+    () => setIsCreateModalOpen(false),
+    isCreateModalOpen
+  );
 
   // Yeni Pano Form State
   const [newBoardName, setNewBoardName] = useState('');
@@ -128,7 +135,7 @@ export const BoardListPanel: React.FC = () => {
       loadBoardDetails(activeBoard.id);
     } catch (err) {
       console.error('Öğe eklenirken hata:', err);
-      alert('Öğe panoya eklenemedi (zaten ekli olabilir).');
+      toast.error('Öğe panoya eklenemedi (zaten ekli olabilir).');
     }
   };
 
@@ -319,8 +326,18 @@ export const BoardListPanel: React.FC = () => {
 
       {/* Yeni Pano Oluştur Modalı */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden p-6">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setIsCreateModalOpen(false); }}
+        >
+          <div
+            ref={createModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Yeni çalışma panosu oluştur"
+            tabIndex={-1}
+            className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden p-6 outline-none"
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-white text-base">Yeni Çalışma Panosu</h3>
               <button

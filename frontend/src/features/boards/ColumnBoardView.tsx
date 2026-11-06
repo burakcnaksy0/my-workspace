@@ -19,6 +19,7 @@ import { boardsApi } from './api';
 import { apiRequest } from '../../lib/api';
 import { ExerciseDetailModal } from './ExerciseDetailModal';
 import { ItemDetailModal } from './ItemDetailModal';
+import { useToast } from '../../components/ui/toast';
 import { isRecognizedExercise, isFitnessContext } from './exerciseDatabase';
 import type { BoardDetails, BoardColumn, BoardItem } from './types';
 import type { Task } from '../../types/task';
@@ -89,6 +90,7 @@ export const ColumnBoardView: React.FC<ColumnBoardViewProps> = ({
   onRefresh,
   onOpenAddItemModal,
 }) => {
+  const toast = useToast();
   const [newColName, setNewColName] = useState('');
   const [newColStatus, setNewColStatus] = useState<string>('');
   const [isAddingCol, setIsAddingCol] = useState(false);
@@ -157,6 +159,7 @@ export const ColumnBoardView: React.FC<ColumnBoardViewProps> = ({
       onRefresh();
     } catch (err) {
       console.error('Sütun eklenirken hata:', err);
+      toast.error('Sütun eklenemedi.');
     }
   };
 
@@ -176,6 +179,7 @@ export const ColumnBoardView: React.FC<ColumnBoardViewProps> = ({
       onRefresh();
     } catch (err) {
       console.error('Şablon sütunları eklenirken hata:', err);
+      toast.error('Şablon uygulanamadı.');
     }
   };
 
@@ -192,6 +196,7 @@ export const ColumnBoardView: React.FC<ColumnBoardViewProps> = ({
       onRefresh();
     } catch (err) {
       console.error('Kalan günler eklenirken hata:', err);
+      toast.error('Kalan günler sütunları eklenemedi.');
     }
   };
 
@@ -204,6 +209,7 @@ export const ColumnBoardView: React.FC<ColumnBoardViewProps> = ({
       onRefresh();
     } catch (err) {
       console.error('Sütun silinirken hata:', err);
+      toast.error('Sütun silinemedi.');
     }
   };
 
@@ -213,6 +219,7 @@ export const ColumnBoardView: React.FC<ColumnBoardViewProps> = ({
       onRefresh();
     } catch (err) {
       console.error('Öğe panodan kaldırılırken hata:', err);
+      toast.error('Öğe panodan kaldırılamadı.');
     }
   };
 
@@ -228,6 +235,7 @@ export const ColumnBoardView: React.FC<ColumnBoardViewProps> = ({
       onRefresh();
     } catch (err) {
       console.error('Kart taşınırken hata:', err);
+      toast.error('Kart taşınamadı.');
     }
   };
 
@@ -259,7 +267,7 @@ export const ColumnBoardView: React.FC<ColumnBoardViewProps> = ({
       onRefresh();
     } catch (err) {
       console.error('Hızlı kart eklenemedi:', err);
-      alert('Kart eklenirken bir hata oluştu.');
+      toast.error('Kart eklenirken bir hata oluştu.');
     } finally {
       setIsSubmittingQuickAdd(false);
     }

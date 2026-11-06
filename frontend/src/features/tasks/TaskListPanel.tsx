@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { useAuth } from '../../context/AuthContext';
 import { apiRequest } from '../../lib/api';
 import type { Task, CreateTaskRequest, UpdateTaskRequest, TaskStatusUpdateRequest, PagedResponse } from '../../types/task';
@@ -69,6 +70,14 @@ export const TaskListPanel: React.FC = () => {
 
   // Edit form
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const createModalRef = useDialogA11y<HTMLDivElement>(
+    () => setIsCreateOpen(false),
+    isCreateOpen
+  );
+  const editModalRef = useDialogA11y<HTMLDivElement>(
+    () => setEditingTask(null),
+    !!editingTask
+  );
   const [editForm, setEditForm] = useState<TaskFormData>({
     title: '', description: '', priority: 'MEDIUM', areaId: '', dueAt: ''
   });
@@ -509,8 +518,18 @@ export const TaskListPanel: React.FC = () => {
 
       {/* Create Task Modal */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setIsCreateOpen(false); }}
+        >
+          <div
+            ref={createModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Yeni görev oluştur"
+            tabIndex={-1}
+            className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-2xl outline-none"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
               <h4 className="font-semibold text-white">Yeni Görev</h4>
               <button
@@ -596,8 +615,18 @@ export const TaskListPanel: React.FC = () => {
 
       {/* Edit Task Modal */}
       {editingTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setEditingTask(null); }}
+        >
+          <div
+            ref={editModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Görevi düzenle"
+            tabIndex={-1}
+            className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-2xl outline-none"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
               <h4 className="font-semibold text-white">Görevi Düzenle</h4>
               <button

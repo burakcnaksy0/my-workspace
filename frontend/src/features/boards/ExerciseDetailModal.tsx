@@ -16,6 +16,7 @@ import {
 import { findExerciseInDatabase } from './exerciseDatabase';
 import { ExerciseVisual } from './ExerciseVisual';
 import { apiRequest } from '../../lib/api';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 import type { BoardItem } from './types';
 import type { Task, TaskStatusUpdateRequest } from '../../types/task';
 
@@ -45,6 +46,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const panelRef = useDialogA11y<HTMLDivElement>(onClose);
 
   // Status Change handler
   const handleStatusChange = async (newStatus: 'TODO' | 'IN_PROGRESS' | 'DONE') => {
@@ -98,8 +100,18 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
-      <div className="w-full max-w-2xl rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh] my-auto">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${title} egzersiz rehberi`}
+        tabIndex={-1}
+        className="w-full max-w-2xl rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh] my-auto outline-none"
+      >
         {/* Top Header */}
         <div className="p-5 border-b border-slate-800/80 bg-slate-950/60 flex items-start justify-between gap-4 shrink-0">
           <div className="space-y-1">

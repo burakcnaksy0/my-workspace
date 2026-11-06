@@ -1,28 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useEditor, EditorContent, ReactNodeViewRenderer } from '@tiptap/react';
+import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
-import Image from '@tiptap/extension-image';
-import { ImageNodeView } from './ImageNodeView';
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { TextSelection } from 'prosemirror-state';
 import {
-  Bold,
-  Italic,
-  Strikethrough,
-  Code,
-  Heading1,
-  Heading2,
-  Heading3,
-  List,
-  ListOrdered,
-  Quote,
-  SquareCode,
-  Link2,
-  Table2,
-  Image as ImageIcon,
-  Undo,
-  Redo,
   Save,
   Trash2,
   Tag as TagIcon,
@@ -33,10 +15,10 @@ import {
   Loader2,
   Clock,
   Layers,
-  LayoutTemplate,
-  ChevronDown,
 } from 'lucide-react';
 import { useAutosave } from '../../hooks/useAutosave';
+import { NoteToolbar } from './NoteToolbar';
+import { processImageFile, CustomImage } from './noteImage';
 import { apiRequest } from '../../lib/api';
 import type { Note, UpdateNoteRequest } from '../../types/note';
 import type { Area } from '../../types/workspace';
@@ -48,257 +30,6 @@ interface NoteEditorProps {
   onDeleteNote: (noteId: string) => Promise<void>;
   onNoteSaved?: (savedNote: Note) => void;
 }
-
-/**
- * Optimizes pasted/dropped images: reads as DataURL, resizes giant screenshots to max 1600px width/height
- * to ensure snappy saves and keep base64 payload light.
- */
-const processImageFile = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    if (!file.type.startsWith('image/')) {
-      return reject(new Error('Dosya bir görsel değil'));
-    }
-
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error);
-    reader.onload = () => {
-      const result = reader.result as string;
-      // If file is already reasonably small (< 600KB), keep directly
-      if (file.size < 600 * 1024) {
-        return resolve(result);
-      }
-
-      const img = new window.Image();
-      img.onerror = () => resolve(result);
-      img.onload = () => {
-        const maxWidth = 1600;
-        const maxHeight = 1600;
-        let { width, height } = img;
-
-        if (width > maxWidth || height > maxHeight) {
-          if (width / maxWidth > height / maxHeight) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          } else {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          return resolve(result);
-        }
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const isPng = file.type === 'image/png';
-        const compressed = isPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.85);
-        resolve(compressed);
-      };
-      img.src = result;
-    };
-    reader.readAsDataURL(file);
-  });
-};
-
-/**
- * Custom Image extension that adds width & alignment attributes,
- * makes images draggable in the document, and uses ImageNodeView for interactive resizing and positioning.
- */
-const CustomImage = Image.extend({
-  draggable: true,
-  addAttributes() {
-    return {
-      ...this.parent?.(),
-      width: {
-        default: '100%',
-        parseHTML: (element) => element.style.width || element.getAttribute('width') || '100%',
-        renderHTML: (attributes) => {
-          if (!attributes.width) return {};
-          return {
-            style: `width: ${attributes.width}`,
-          };
-        },
-      },
-      alignment: {
-        default: 'center',
-        parseHTML: (element) => element.getAttribute('data-alignment') || 'center',
-        renderHTML: (attributes) => {
-          return {
-            'data-alignment': attributes.alignment || 'center',
-          };
-        },
-      },
-      posX: {
-        default: 0,
-        parseHTML: (element) => parseFloat(element.getAttribute('data-pos-x') || '0'),
-        renderHTML: (attributes) => {
-          return {
-            'data-pos-x': attributes.posX || 0,
-          };
-        },
-      },
-      posY: {
-        default: 0,
-        parseHTML: (element) => parseFloat(element.getAttribute('data-pos-y') || '0'),
-        renderHTML: (attributes) => {
-          return {
-            'data-pos-y': attributes.posY || 0,
-          };
-        },
-      },
-      isPinned: {
-        default: false,
-        parseHTML: (element) => element.getAttribute('data-is-pinned') === 'true',
-        renderHTML: (attributes) => {
-          return {
-            'data-is-pinned': attributes.isPinned ? 'true' : 'false',
-          };
-        },
-      },
-    };
-  },
-  addNodeView() {
-    return ReactNodeViewRenderer(ImageNodeView);
-  },
-});
-
-interface NoteTemplate {
-  id: string;
-  name: string;
-  desc: string;
-  icon: string;
-  html: string;
-}
-
-const NOTE_TEMPLATES: NoteTemplate[] = [
-  {
-    id: 'weekly-plan',
-    name: 'Haftalık Planlayıcı',
-    desc: 'Haftalık hedefler, günlük plan ve notlar tablosu',
-    icon: '📋',
-    html: `
-      <h2>📋 Haftalık Planlayıcı & Hedefler</h2>
-      <p>Bu haftanın odak noktaları ve günlük aksiyon planı.</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Gün</th>
-            <th>Öncelikli Görevler / İşler</th>
-            <th>Hedef & Çıktı</th>
-            <th>Durum</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td><strong>Pazartesi</strong></td><td>Haftalık planlama ve toplantılar</td><td>Haftalık hedefler netleştirildi</td><td>Planlandı</td></tr>
-          <tr><td><strong>Salı</strong></td><td>Ana proje geliştirme / çalışma</td><td>Modül 1 tamamlanacak</td><td>Bekliyor</td></tr>
-          <tr><td><strong>Çarşamba</strong></td><td>İncelemeler ve ara değerlendirme</td><td>Geri bildirimler toplandı</td><td>Bekliyor</td></tr>
-          <tr><td><strong>Perşembe</strong></td><td>Derin çalışma / uygulama</td><td>Rapor / çıktı teslimi</td><td>Bekliyor</td></tr>
-          <tr><td><strong>Cuma</strong></td><td>Hafta kapanışı ve dokümantasyon</td><td>Haftalık özet rapor</td><td>Bekliyor</td></tr>
-          <tr><td><strong>Cumartesi</strong></td><td>Kişisel gelişim & okumalar</td><td>2 saat odaklanma</td><td>Bekliyor</td></tr>
-          <tr><td><strong>Pazar</strong></td><td>Haftalık retrospektif & dinlenme</td><td>Yeni haftaya hazırlık</td><td>Bekliyor</td></tr>
-        </tbody>
-      </table>
-      <p></p>
-    `,
-  },
-  {
-    id: 'meeting-notes',
-    name: 'Toplantı Notu & Kararlar',
-    desc: 'Gündem, katılımcılar, alınan kararlar ve aksiyonlar',
-    icon: '💼',
-    html: `
-      <h2>💼 Toplantı Notu: [Toplantı Konusu]</h2>
-      <p><strong>Katılımcılar:</strong> Ekip | <strong>Konum / Link:</strong> Online</p>
-      <h3>🎯 Toplantı Gündemi</h3>
-      <ul>
-        <li>1. Madde: Öncelikli hedefler ve mevcut durum</li>
-        <li>2. Madde: Karşılaşılan engeller ve çözüm önerileri</li>
-      </ul>
-      <h3>✅ Alınan Kararlar</h3>
-      <ul>
-        <li>Karar 1: ...</li>
-        <li>Karar 2: ...</li>
-      </ul>
-      <h3>📌 Aksiyon Maddeleri</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Aksiyon</th>
-            <th>Sorumlu</th>
-            <th>Termin Tarihi</th>
-            <th>Durum</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td>Gereksinim dokümanını tamamla</td><td>Proje Lideri</td><td>Cuma</td><td>Açık</td></tr>
-          <tr><td>Müşteri sunumunu hazırla</td><td>Ürün Sorumlusu</td><td>Pazartesi</td><td>Açık</td></tr>
-        </tbody>
-      </table>
-      <p></p>
-    `,
-  },
-  {
-    id: 'project-sprint',
-    name: 'Proje & Sprint Planı',
-    desc: 'Proje kapsamı, teslim edilecekler ve sprint hedefleri',
-    icon: '🚀',
-    html: `
-      <h2>🚀 Proje & Sprint Planı: [Proje Adı]</h2>
-      <p><strong>Sprint Hedefi:</strong> Bu sprintte teslim edilecek temel değer ve özellikler.</p>
-      <h3>📦 Kapsam & Teslimatlar</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Modül / Özellik</th>
-            <th>Açıklama</th>
-            <th>Öncelik</th>
-            <th>Teslim</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td>Temel Fonksiyonlar</td><td>Temel API ve iş kuralları</td><td>Yüksek</td><td>Sprint Sonu</td></tr>
-          <tr><td>Arayüz Entegrasyonu</td><td>Kullanıcı etkileşimleri ve formlar</td><td>Orta</td><td>Sprint Sonu</td></tr>
-        </tbody>
-      </table>
-      <p></p>
-    `,
-  },
-  {
-    id: 'workout-plan',
-    name: 'Haftalık Spor Programı',
-    desc: 'Bölgeler, hareketler, set x tekrar ve kilo tablosu',
-    icon: '🏋️',
-    html: `
-      <h2>🏋️‍♂️ Haftalık Antrenman ve Spor Programı</h2>
-      <p>Hedef Kas Grupları & Egzersiz Planı</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Gün</th>
-            <th>Bölge / Kas Grubu</th>
-            <th>Egzersiz / Hareket</th>
-            <th>Set x Tekrar</th>
-            <th>Hedef Ağırlık / Not</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td><strong>Pazartesi</strong></td><td>Göğüs & Triceps</td><td>Bench Press</td><td>4 x 8-10</td><td>70 kg</td></tr>
-          <tr><td><strong>Salı</strong></td><td>Sırt & Biceps</td><td>Lat Pulldown</td><td>4 x 10</td><td>60 kg</td></tr>
-          <tr><td><strong>Çarşamba</strong></td><td>Dinlenme / Kardiyo</td><td>30 dk Tempolu Yürüyüş</td><td>1 Seans</td><td>Hafif tempo</td></tr>
-          <tr><td><strong>Perşembe</strong></td><td>Bacak & Karın</td><td>Barbell Squat</td><td>4 x 8</td><td>80 kg</td></tr>
-          <tr><td><strong>Cuma</strong></td><td>Omuz & Kol</td><td>Overhead Press</td><td>4 x 10</td><td>45 kg</td></tr>
-          <tr><td><strong>Cumartesi</strong></td><td>Full Body / Kardiyo</td><td>Fonksiyonel Egzersizler</td><td>3 Tur</td><td>Kondisyon</td></tr>
-          <tr><td><strong>Pazar</strong></td><td>Dinlenme</td><td>Esneme & Mobilite</td><td>20 dk</td><td>Toparlanma</td></tr>
-        </tbody>
-      </table>
-      <p></p>
-    `,
-  },
-];
 
 export const NoteEditor: React.FC<NoteEditorProps> = ({
   note,
@@ -313,7 +44,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const [newTagInput, setNewTagInput] = useState('');
   const [version, setVersion] = useState(note.version);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isTemplateMenuOpen, setIsTemplateMenuOpen] = useState(false);
 
   // Sync state if a different note is selected
   useEffect(() => {
@@ -740,264 +470,26 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
       {/* Tiptap Formatting Toolbar */}
       {editor && (
-        <div className="px-3 py-2 border-b border-slate-800/80 bg-slate-900/70 flex flex-wrap items-center gap-1 text-slate-300">
-          {/* Headings */}
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-            isActive={editor.isActive('heading', { level: 1 })}
-            title="Başlık 1"
-          >
-            <Heading1 className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            isActive={editor.isActive('heading', { level: 2 })}
-            title="Başlık 2"
-          >
-            <Heading2 className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-            isActive={editor.isActive('heading', { level: 3 })}
-            title="Başlık 3"
-          >
-            <Heading3 className="w-4 h-4" />
-          </ToolbarButton>
-
-          <ToolbarDivider />
-
-          {/* Inline Styles */}
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            isActive={editor.isActive('bold')}
-            title="Kalın (Ctrl+B)"
-          >
-            <Bold className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            isActive={editor.isActive('italic')}
-            title="İtalik (Ctrl+I)"
-          >
-            <Italic className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleStrike().run()}
-            isActive={editor.isActive('strike')}
-            title="Üstü Çizili"
-          >
-            <Strikethrough className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleCode().run()}
-            isActive={editor.isActive('code')}
-            title="Satır İçi Kod"
-          >
-            <Code className="w-4 h-4" />
-          </ToolbarButton>
-
-          <ToolbarDivider />
-
-          {/* Lists & Blocks */}
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            isActive={editor.isActive('bulletList')}
-            title="Madde İşaretli Liste"
-          >
-            <List className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            isActive={editor.isActive('orderedList')}
-            title="Numaralı Liste"
-          >
-            <ListOrdered className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            isActive={editor.isActive('blockquote')}
-            title="Alıntı"
-          >
-            <Quote className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-            isActive={editor.isActive('codeBlock')}
-            title="Kod Bloğu"
-          >
-            <SquareCode className="w-4 h-4" />
-          </ToolbarButton>
-
-          <ToolbarDivider />
-
-          {/* Links, Images & Tables */}
-          <ToolbarButton
-            onClick={setLink}
-            isActive={editor.isActive('link')}
-            title="Bağlantı Ekle / Düzenle"
-          >
-            <Link2 className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => fileInputRef.current?.click()}
-            title="Görsel Ekle / Yükle (veya doğrudan panodan Ctrl+V yapıştırın)"
-          >
-            <ImageIcon className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() =>
-              editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
-            }
-            isActive={editor.isActive('table')}
-            title="Tablo Ekle (3x3)"
-          >
-          <Table2 className="w-4 h-4" />
-        </ToolbarButton>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleImageFileChange}
+        <NoteToolbar
+          editor={editor}
+          onSetLink={setLink}
+          fileInputRef={fileInputRef}
+          onImageFileChange={handleImageFileChange}
         />
+      )}
 
-          {editor.isActive('table') && (
-            <div className="flex items-center gap-1 text-[11px] bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700">
-              <button
-                onClick={() => editor.chain().focus().addColumnAfter().run()}
-                className="hover:text-white"
-                title="Sütun Ekle"
-              >
-                +Sütun
-              </button>
-              <button
-                onClick={() => editor.chain().focus().addRowAfter().run()}
-                className="hover:text-white"
-                title="Satır Ekle"
-              >
-                +Satır
-              </button>
-              <button
-                onClick={() => editor.chain().focus().deleteTable().run()}
-                className="hover:text-red-400"
-                title="Tabloyu Sil"
-              >
-                Sil
-              </button>
-            </div>
-          )}
+      {/* Editor Content Area */}
+      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+        <EditorContent editor={editor} />
+      </div>
 
-          <ToolbarDivider />
-
-          {/* Note Templates Dropdown */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsTemplateMenuOpen(!isTemplateMenuOpen)}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition shrink-0"
-              title="Not Hazır Şablonları"
-            >
-              <LayoutTemplate className="w-3.5 h-3.5 text-blue-400" />
-              <span>+ Hazır Şablon</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
-
-            {isTemplateMenuOpen && (
-              <div className="absolute left-0 top-full mt-2 w-72 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl p-2 z-30 animate-fade-in space-y-1">
-                <div className="px-2.5 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
-                  Hazır Not Şablonları
-                </div>
-                {NOTE_TEMPLATES.map((tmpl) => (
-                  <button
-                    key={tmpl.id}
-                    type="button"
-                    onClick={() => {
-                      editor.chain().focus().insertContent(tmpl.html).run();
-                      setIsTemplateMenuOpen(false);
-                    }}
-                    className="w-full text-left p-2 rounded-xl hover:bg-slate-800 transition flex items-start gap-2.5 group"
-                  >
-                    <span className="text-lg leading-none mt-0.5">{tmpl.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-semibold text-white group-hover:text-blue-400 transition-colors">
-                        {tmpl.name}
-                      </div>
-                      <div className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">
-                        {tmpl.desc}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-      <ToolbarDivider />
-
-      {/* Undo / Redo */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().undo().run()}
-        disabled={!editor.can().undo()}
-        title="Geri Al (Ctrl+Z)"
-      >
-        <Undo className="w-4 h-4" />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().redo().run()}
-        disabled={!editor.can().redo()}
-        title="İleri Al (Ctrl+Y)"
-      >
-        <Redo className="w-4 h-4" />
-      </ToolbarButton>
+      {/* Footer Info */}
+      <div className="px-4 py-2 border-t border-slate-800/60 bg-slate-900/40 text-[11px] text-slate-400 flex items-center justify-between">
+        <span>Sürüm (Version): #{version}</span>
+        {lastSavedAt && (
+          <span>Son Kayıt: {lastSavedAt.toLocaleTimeString('tr-TR')}</span>
+        )}
+      </div>
     </div>
-  )
-}
-
-{/* Editor Content Area */ }
-<div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-  <EditorContent editor={editor} />
-</div>
-
-{/* Footer Info */ }
-<div className="px-4 py-2 border-t border-slate-800/60 bg-slate-900/40 text-[11px] text-slate-400 flex items-center justify-between">
-  <span>Sürüm (Version): #{version}</span>
-  {lastSavedAt && (
-    <span>Son Kayıt: {lastSavedAt.toLocaleTimeString('tr-TR')}</span>
-  )}
-</div>
-    </div >
   );
 };
-
-/* ---------- Sub-components ---------- */
-
-interface ToolbarButtonProps {
-  onClick: () => void;
-  isActive?: boolean;
-  disabled?: boolean;
-  children: React.ReactNode;
-  title: string;
-}
-
-const ToolbarButton: React.FC<ToolbarButtonProps> = ({
-  onClick,
-  isActive = false,
-  disabled = false,
-  children,
-  title,
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    disabled={disabled}
-    title={title}
-    className={`p-1.5 rounded-lg transition text-xs ${isActive
-        ? 'bg-blue-600/30 text-blue-300 border border-blue-500/40'
-        : 'hover:bg-slate-800 text-slate-400 hover:text-slate-100'
-      } ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}
-  >
-    {children}
-  </button>
-);
-
-const ToolbarDivider = () => <div className="w-[1px] h-4 bg-slate-700/60 mx-1" />;

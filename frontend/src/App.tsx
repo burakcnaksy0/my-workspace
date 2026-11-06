@@ -22,6 +22,7 @@ import { AreaManagementModal } from './features/workspace/AreaManagementModal';
 import { TaskListPanel } from './features/tasks/TaskListPanel';
 import { DashboardPanel } from './features/dashboard/DashboardPanel';
 import { ATCShader } from './components/ui/atc-shader';
+import { ErrorBoundary } from './components/ui/error-boundary';
 const NoteListPanel = React.lazy(() =>
   import('./features/notes/NoteListPanel').then((m) => ({ default: m.NoteListPanel }))
 );
@@ -331,6 +332,7 @@ const DashboardContent: React.FC = () => {
         </header>
 
         {/* Content Body */}
+        <ErrorBoundary key={activeTab} label="Modül">
         {['boards', 'notes', 'drawings'].includes(activeTab) ? (
           <div className="flex-1 flex flex-col min-h-0 min-w-0 w-full overflow-hidden">
             <React.Suspense
@@ -358,6 +360,7 @@ const DashboardContent: React.FC = () => {
             </React.Suspense>
           </div>
         )}
+        </ErrorBoundary>
       </main>
 
       {/* Area modal */}

@@ -37,6 +37,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { useAutosave } from '../../hooks/useAutosave';
+import { apiRequest } from '../../lib/api';
 import type { Note, UpdateNoteRequest } from '../../types/note';
 import type { Area } from '../../types/workspace';
 
@@ -475,6 +476,23 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const versionRef = useRef(version);
   versionRef.current = version;
 
+  /**
+   * 409 çakışmasında sunucudaki güncel sürümü getirir; yerel düzenlemeler
+   * korunur, yalnızca optimistic-lock sürümü tazelenir.
+   */
+  const recoverConflictVersion = useCallback(async () => {
+    try {
+      const latest = await apiRequest<Note>(
+        `/api/workspaces/${note.workspaceId}/notes/${note.id}`
+      );
+      versionRef.current = latest.version;
+      setVersion(latest.version);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [note.workspaceId, note.id]);
+
   const handleSave = useCallback(
     async (_data: typeof currentFormData) => {
       if (!editor) return;
@@ -501,10 +519,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     [editor, title, areaId, tags, onUpdateNote, onNoteSaved]
   );
 
-  const { saveStatus, errorMessage, lastSavedAt, saveNow, triggerAutosave } = useAutosave({
+  const { saveStatus, errorMessage, conflictNotice, dismissConflictNotice, lastSavedAt, saveNow, triggerAutosave } = useAutosave({
     data: currentFormData,
     onSave: handleSave,
     delay: 1200,
+    onConflictRecovery: recoverConflictVersion,
   });
 
   // Listen to editor content change to trigger debounced autosave (NOT instant saveNow!)
@@ -663,6 +682,22 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Conflict Recovery Notice (bilgilendirme, kayıt otomatik devam eder) */}
+      {conflictNotice && (
+        <div className="mx-4 mt-3 p-3 rounded-xl bg-amber-900/30 border border-amber-500/40 text-amber-200 text-xs flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+          <span className="flex-1">{conflictNotice}</span>
+          <button
+            type="button"
+            onClick={dismissConflictNotice}
+            className="text-amber-300 hover:text-amber-100 shrink-0"
+            title="Kapat"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Conflict Error Alert if any */}
       {errorMessage && (

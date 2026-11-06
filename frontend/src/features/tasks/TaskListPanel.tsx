@@ -182,7 +182,7 @@ export const TaskListPanel: React.FC = () => {
   };
 
   // Instant Optimistic Status Change (Zero Delay feedback)
-  const handleStatusChange = async (task: Task, newStatus: Task['status']) => {
+  const handleStatusChange = useCallback(async (task: Task, newStatus: Task['status']) => {
     if (!activeWorkspace) return;
     const prevTasks = [...tasks];
     setTasks((prev) =>
@@ -199,13 +199,14 @@ export const TaskListPanel: React.FC = () => {
       setTasks(prevTasks);
       setError(err instanceof Error ? err.message : 'Durum güncellenemedi');
     }
-  };
+  }, [activeWorkspace, tasks]);
 
   // Instant Optimistic Task Deletion
-  const handleDeleteTask = async (task: Task) => {
+  const handleDeleteTask = useCallback(async (task: Task) => {
     if (!activeWorkspace) return;
     if (!window.confirm(`"${task.title}" görevi silinecek. Emin misiniz?`)) return;
     const prevTasks = [...tasks];
+    const prevTotal = totalElements;
     setTasks((prev) => prev.filter((t) => t.id !== task.id));
     setTotalElements((prev) => Math.max(0, prev - 1));
     try {
@@ -214,12 +215,13 @@ export const TaskListPanel: React.FC = () => {
       });
     } catch (err: unknown) {
       setTasks(prevTasks);
-      setTotalElements(prevTasks.length);
+      // Sayfalı listede toplam, o anki sayfa uzunluğuna değil öncesi tutulan değere dönmeli
+      setTotalElements(prevTotal);
       setError(err instanceof Error ? err.message : 'Görev silinemedi');
     }
-  };
+  }, [activeWorkspace, tasks, totalElements]);
 
-  const startEdit = (task: Task) => {
+  const startEdit = useCallback((task: Task) => {
     setEditingTask(task);
     setEditForm({
       title: task.title,
@@ -228,7 +230,7 @@ export const TaskListPanel: React.FC = () => {
       areaId: task.areaId || '',
       dueAt: task.dueAt ? new Date(task.dueAt).toISOString().substring(0, 16) : '',
     });
-  };
+  }, []);
 
   // Stats
   const todoCount = tasks.filter((t) => t.status === 'TODO').length;

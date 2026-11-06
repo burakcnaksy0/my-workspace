@@ -23,8 +23,10 @@ import {
   ArrowLeft,
   Maximize2,
   Minimize2,
+  X,
 } from 'lucide-react';
 import type { Drawing, UpdateDrawingRequest } from '../../types/drawing';
+import { apiRequest, ApiError } from '../../lib/api';
 
 // Save status type (local to this component; no useAutosave dependency)
 type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
@@ -51,11 +53,14 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
   const [title, setTitle] = useState(drawing.title);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [conflictNotice, setConflictNotice] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
   // ── Refs: always hold the latest values, never stale in closures ──────────
+  const drawingRef = useRef(drawing);
+  drawingRef.current = drawing;
   const elementsRef = useRef<readonly ExcalidrawElement[]>([]);
   const appStateRef = useRef<AppState | null>(null);
   const filesRef = useRef<BinaryFiles>({});
@@ -108,6 +113,7 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
     versionRef.current = drawing.version;
     setSaveStatus('idle');
     setErrorMessage(null);
+    setConflictNotice(null);
     lastSceneVersionRef.current = getSceneVersion(initialData.elements);
     elementsRef.current = initialData.elements;
     isSavingRef.current = false;
@@ -129,35 +135,65 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
     setSaveStatus('saving');
     setErrorMessage(null);
 
-    const serialized = serializeAsJSON(
-      elementsRef.current,
-      appStateRef.current || ({} as AppState),
-      filesRef.current,
-      'local'
-    );
+    let attemptedRecovery = false;
+    let recoveredThisRun = false;
 
-    try {
-      const updated = await onUpdateDrawingRef.current({
-        title: titleRef.current.trim() || 'Başlıksız Çizim',
-        documentData: serialized,
-        version: versionRef.current,   // always latest
-      });
-      // Update version ref with what the server returned
-      versionRef.current = updated.version;
-      setSaveStatus('saved');
-      setLastSavedAt(new Date());
-    } catch (err: unknown) {
-      setSaveStatus('error');
-      const msg = err instanceof Error ? err.message : 'Kaydetme sırasında bir hata oluştu.';
-      setErrorMessage(msg);
-    } finally {
-      isSavingRef.current = false;
-      // If a change arrived while we were saving, send another request.
-      if (isDirtyRef.current) {
-        isDirtyRef.current = false;
-        // Small delay to avoid tight loops on transient errors
-        debounceTimerRef.current = setTimeout(executeSave, 300);
+    // Döngü: başarılı olana ya da kurtarılabilir conflict kalmayana kadar dene.
+    // Kurtarma versionRef'i tazelediği için tek tekrar yeterlidir.
+    for (;;) {
+      const serialized = serializeAsJSON(
+        elementsRef.current,
+        appStateRef.current || ({} as AppState),
+        filesRef.current,
+        'local'
+      );
+
+      try {
+        const updated = await onUpdateDrawingRef.current({
+          title: titleRef.current.trim() || 'Başlıksız Çizim',
+          documentData: serialized,
+          version: versionRef.current,   // always latest
+        });
+        // Update version ref with what the server returned
+        versionRef.current = updated.version;
+        setSaveStatus('saved');
+        setLastSavedAt(new Date());
+        if (!recoveredThisRun) {
+          setConflictNotice(null);
+        }
+        break;
+      } catch (err: unknown) {
+        const isConflict = err instanceof ApiError && err.status === 409;
+        if (isConflict && !attemptedRecovery) {
+          attemptedRecovery = true;
+          try {
+            const latest = await apiRequest<Drawing>(
+              `/api/workspaces/${drawingRef.current.workspaceId}/drawings/${drawingRef.current.id}`
+            );
+            versionRef.current = latest.version;
+            recoveredThisRun = true;
+            setConflictNotice(
+              'Bu çizim başka bir yerde güncellendi. Sunucudaki sürüm alındı; ' +
+              'sizdeki sahne korunarak yeniden kaydediliyor.'
+            );
+            continue;
+          } catch {
+            // kurtarma başarısız — aşağıdaki düz hata yoluna düş
+          }
+        }
+        setSaveStatus('error');
+        const msg = err instanceof Error ? err.message : 'Kaydetme sırasında bir hata oluştu.';
+        setErrorMessage(msg);
+        break;
       }
+    }
+
+    isSavingRef.current = false;
+    // If a change arrived while we were saving, send another request.
+    if (isDirtyRef.current) {
+      isDirtyRef.current = false;
+      // Small delay to avoid tight loops on transient errors
+      debounceTimerRef.current = setTimeout(executeSave, 300);
     }
   }, []); // no deps — reads everything from refs
 
@@ -438,6 +474,22 @@ export const DrawingEditor: React.FC<DrawingEditorProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Conflict Recovery Notice */}
+      {conflictNotice && (
+        <div className="mx-4 mt-2 p-2.5 rounded-xl bg-amber-900/30 border border-amber-500/40 text-amber-200 text-xs flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+          <span className="flex-1">{conflictNotice}</span>
+          <button
+            type="button"
+            onClick={() => setConflictNotice(null)}
+            className="text-amber-300 hover:text-amber-100 shrink-0"
+            title="Kapat"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Error Banner */}
       {errorMessage && (
